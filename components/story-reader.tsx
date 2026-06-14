@@ -26,6 +26,8 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
   const [audioUrl, setAudioUrl] = useState(pages[pageIndex]?.narration_url);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [audioPrepared, setAudioPrepared] = useState(false);
+  const [audioError, setAudioError] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
   const timerRef = useRef<number | null>(null);
   const page = pages[pageIndex];
@@ -47,6 +49,8 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
   useEffect(() => {
     setAudioUrl(page.narration_url);
     setPlaying(false);
+    setAudioPrepared(false);
+    setAudioError("");
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -58,19 +62,24 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
   }, [page.page_number, page.narration_url, rate, sample, storyId]);
 
   async function ensureAudio() {
-    if (audioUrl) return audioUrl;
-    if (sample) return null;
+    if (audioUrl) return { url: audioUrl, prepared: false };
+    if (sample) return { url: null, prepared: false };
     setBusy(true);
-    const response = await fetch(`/api/stories/${storyId}/narration`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ pageNumber: page.page_number }),
-    });
-    const result = await response.json();
-    setBusy(false);
-    if (!response.ok) throw new Error(result.error);
-    setAudioUrl(result.narrationUrl);
-    return result.narrationUrl as string;
+    setAudioError("");
+    try {
+      const response = await fetch(`/api/stories/${storyId}/narration`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pageNumber: page.page_number }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
+      setAudioUrl(result.narrationUrl);
+      setAudioPrepared(true);
+      return { url: result.narrationUrl as string, prepared: true };
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function togglePlayback() {
@@ -80,7 +89,14 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
       setPlaying(false);
       return;
     }
-    const url = await ensureAudio();
+    let audio;
+    try {
+      audio = await ensureAudio();
+    } catch (error) {
+      setAudioError(error instanceof Error ? error.message : "Audio could not be prepared.");
+      return;
+    }
+    const { url, prepared } = audio;
     if (!url && sample) {
       const utterance = new SpeechSynthesisUtterance(`${page.title}. ${page.body}`);
       utterance.rate = rate;
@@ -89,10 +105,12 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
       setPlaying(true);
       return;
     }
+    if (prepared) return;
     if (audioRef.current) {
       audioRef.current.playbackRate = rate;
       if (audioRef.current.currentTime === 0 && pageIndex === initialPage - 1) audioRef.current.currentTime = initialPosition / 1000;
       await audioRef.current.play();
+      setAudioPrepared(false);
       setPlaying(true);
     }
   }
@@ -130,7 +148,10 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
       </div>
       <div className="reader-bottom">
         <button className="round-button" onClick={() => setPageIndex(index => Math.max(0, index - 1))} disabled={pageIndex === 0}>←</button>
-        <button className="play-button" onClick={() => void togglePlayback()} disabled={busy}>{playing ? "Ⅱ Pause" : busy ? "Preparing audio…" : "▶ Play bedtime audio"}</button>
+        <button className="play-button" onClick={() => void togglePlayback()} disabled={busy}>
+          {playing ? "Ⅱ Pause" : busy ? "Preparing audio…" : audioPrepared ? "▶ Audio ready — tap to play" : "▶ Play bedtime audio"}
+        </button>
+        {audioError ? <span role="alert">{audioError}</span> : null}
         <label>Speed <select className="speed-select" value={rate} onChange={event => {
           const next = Number(event.target.value);
           setRate(next);
