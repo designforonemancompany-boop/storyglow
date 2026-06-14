@@ -1,0 +1,11 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // All uploads and downloads flow through authenticated Next.js server
+    // routes. The Admin SDK creates short-lived signed URLs for owned media.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

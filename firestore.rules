@@ -1,0 +1,70 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function ownsStory(storyId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/stories/$(storyId)).data.owner_id == request.auth.uid;
+    }
+
+    match /profiles/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+
+      match /progress/{storyId} {
+        allow read: if isOwner(userId) && ownsStory(storyId);
+        allow write: if false;
+      }
+    }
+
+    match /stories/{storyId} {
+      allow read: if signedIn() && resource.data.owner_id == request.auth.uid;
+      allow write: if false;
+
+      match /pages/{pageId} {
+        allow read: if ownsStory(storyId);
+        allow write: if false;
+      }
+    }
+
+    match /alphaTesters/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
+    match /userFeedback/{feedbackId} {
+      allow read: if signedIn() && resource.data.user_id == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /marketingConsentEvents/{eventId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /familyPhotoAudits/{auditId} {
+      allow read: if signedIn() && resource.data.user_id == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /shareLinks/{linkId} {
+      allow read, write: if false;
+    }
+
+    match /system/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
