@@ -21,7 +21,7 @@ export function SignInForm() {
     setBusy(true);
     setMessage("");
     try {
-      await sendSignInLinkToEmail(firebaseBrowserAuth(), email, {
+      await sendSignInLinkToEmail(await firebaseBrowserAuth(), email, {
         url: `${location.origin}/auth/callback`,
         handleCodeInApp: true,
       });
@@ -39,7 +39,7 @@ export function SignInForm() {
     setBusy(true);
     setMessage("");
     try {
-      const credential = await signInWithPopup(firebaseBrowserAuth(), new GoogleAuthProvider());
+      const credential = await signInWithPopup(await firebaseBrowserAuth(), new GoogleAuthProvider());
       const idToken = await credential.user.getIdToken();
       const response = await fetch("/api/auth/session", {
         method: "POST",

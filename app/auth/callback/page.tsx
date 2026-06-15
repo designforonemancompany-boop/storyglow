@@ -14,7 +14,7 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     async function finish(storedEmail: string) {
       try {
-        const auth = firebaseBrowserAuth();
+        const auth = await firebaseBrowserAuth();
         if (!isSignInWithEmailLink(auth, window.location.href)) throw new Error("This sign-in link is invalid or expired.");
         const credential = await signInWithEmailLink(auth, storedEmail, window.location.href);
         const idToken = await credential.user.getIdToken();
@@ -47,7 +47,7 @@ export default function AuthCallbackPage() {
     setNeedsEmail(false);
     setMessage("Finishing your secure sign-in...");
     try {
-      const auth = firebaseBrowserAuth();
+      const auth = await firebaseBrowserAuth();
       if (!isSignInWithEmailLink(auth, window.location.href)) throw new Error("This sign-in link is invalid or expired.");
       const credential = await signInWithEmailLink(auth, email, window.location.href);
       const idToken = await credential.user.getIdToken();

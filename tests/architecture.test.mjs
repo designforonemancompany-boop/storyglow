@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -17,6 +17,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("app/api/auth/session/route.ts"),
     read("app/api/stories/[id]/checkout/route.ts"),
     read("app/api/stripe/webhook/route.ts"),
+    read("app/api/firebase-config/route.ts"),
   ]);
 
   assert.match(pkg, /"firebase"/);
@@ -48,6 +49,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(stripeWebhook, /printOrders/);
   assert.match(firestoreRules, /match \/printOrders/);
   assert.match(firestoreRules, /match \/checkoutSessions/);
+  assert.match(firebaseConfig, /publicEnv/);
+  assert.doesNotMatch(firebaseConfig, /GOOGLE_GENERATIVE_AI_API_KEY|STRIPE_SECRET_KEY/);
 });
 
 test("story entitlement policy grants one free story and then consumes credits", async () => {

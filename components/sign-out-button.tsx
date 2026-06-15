@@ -8,8 +8,9 @@ export function SignOutButton() {
   const router = useRouter();
   return (
     <button className="text-button" onClick={async () => {
+      const auth = await firebaseBrowserAuth();
       await Promise.all([
-        signOut(firebaseBrowserAuth()),
+        signOut(auth),
         fetch("/api/auth/session", { method: "DELETE" }),
       ]);
       router.push("/");
