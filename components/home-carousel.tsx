@@ -37,8 +37,8 @@ const slides = [
   },
   {
     title: "A story to keep on their shelf",
-    copy: "Join the waitlist for a clothbound edition made for birthday hugs, bedtime rereads, and growing-up memories.",
-    cta: "Explore StoryGlow",
+    copy: "Read the digital story for free, then order a personalized hardcover from your private library whenever it becomes a family favorite.",
+    cta: "Create a book",
     href: "/create",
     kind: "book",
   },

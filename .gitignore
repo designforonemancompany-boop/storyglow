@@ -9,3 +9,6 @@ outputs/
 work/
 assets/
 .vercel/
+.npm-cache/
+*.tsbuildinfo
+billing-dialog.png

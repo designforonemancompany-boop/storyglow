@@ -39,3 +39,9 @@ env:
   - variable: FEEDBACK_WEBHOOK_SECRET
     secret: FEEDBACK_WEBHOOK_SECRET
     availability: [RUNTIME]
+  - variable: PHYSICAL_BOOK_PRICE_CENTS
+    value: "4900"
+    availability: [BUILD, RUNTIME]
+  - variable: PHYSICAL_BOOK_SHIPPING_CENTS
+    value: "800"
+    availability: [BUILD, RUNTIME]

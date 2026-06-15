@@ -16,6 +16,7 @@ export async function POST(request: Request) {
     batch.set(db.collection("profiles").doc(user.uid), {
       marketingOptIn: parsed.data.marketingOptIn,
       marketingUpdatedAt: FieldValue.serverTimestamp(),
+      marketingWithdrawnAt: parsed.data.marketingOptIn ? null : FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }, { merge: true });
     batch.set(db.collection("marketingConsentEvents").doc(), {

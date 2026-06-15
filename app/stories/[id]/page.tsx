@@ -13,7 +13,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
     storyPages(id),
     firestore().collection("profiles").doc(user.uid).collection("progress").doc(id).get(),
   ]);
-  if (!story || story.status !== "ready") notFound();
+  if (!story || !["ready", "archived"].includes(story.status)) notFound();
   const pages = await signStoryPages(records);
   return <StoryReader storyId={story.id} title={story.title} pages={pages.map(page => ({
     page_number: page.page_number,

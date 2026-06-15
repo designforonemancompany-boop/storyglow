@@ -47,3 +47,15 @@ export type StoryPageRecord = {
   narration_path: string | null;
   narration_duration_ms: number | null;
 };
+
+export type PrintOrderRecord = {
+  id: string;
+  owner_id: string;
+  story_id: string;
+  checkout_session_id: string;
+  payment_status: string;
+  fulfillment_status: "paid" | "in_production" | "shipped" | "completed" | "cancelled";
+  amount_total: number | null;
+  currency: string | null;
+  updated_at: unknown;
+};

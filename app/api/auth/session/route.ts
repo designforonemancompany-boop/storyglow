@@ -29,6 +29,7 @@ export async function POST(request: Request) {
     const counterRef = db.collection("system").doc("alphaTesterCounter");
     const counter = await transaction.get(counterRef);
     const now = FieldValue.serverTimestamp();
+    let recordConsent = false;
 
     if (!profile.exists) {
       const currentCount = Number(counter.data()?.count || 0);
@@ -39,11 +40,14 @@ export async function POST(request: Request) {
         avatarUrl: decoded.picture || "",
         authProviders: decoded.firebase?.sign_in_provider ? [decoded.firebase.sign_in_provider] : [],
         storybookCredits: 0,
+        freeStoriesUsed: 0,
         marketingOptIn: parsed.data.marketingOptIn,
         marketingUpdatedAt: now,
+        marketingWithdrawnAt: null,
         createdAt: now,
         updatedAt: now,
       });
+      recordConsent = true;
       if (testerNumber) {
         transaction.set(db.collection("alphaTesters").doc(decoded.uid), {
           testerNumber,
@@ -54,23 +58,32 @@ export async function POST(request: Request) {
     } else {
       const providers = new Set<string>(profile.data()?.authProviders || []);
       if (decoded.firebase?.sign_in_provider) providers.add(decoded.firebase.sign_in_provider);
+      const newlyOptingIn = parsed.data.marketingOptIn && !profile.data()?.marketingOptIn;
       transaction.set(profileRef, {
         email: decoded.email,
         displayName: profile.data()?.displayName || decoded.name || "",
         avatarUrl: profile.data()?.avatarUrl || decoded.picture || "",
         authProviders: [...providers],
+        ...(newlyOptingIn ? {
+          marketingOptIn: true,
+          marketingUpdatedAt: now,
+          marketingWithdrawnAt: null,
+        } : {}),
         updatedAt: now,
       }, { merge: true });
+      recordConsent = newlyOptingIn;
     }
 
-    const consentRef = db.collection("marketingConsentEvents").doc();
-    transaction.set(consentRef, {
-      userId: decoded.uid,
-      optedIn: parsed.data.marketingOptIn,
-      source: parsed.data.source,
-      wordingVersion: "2026-06-14-v1",
-      createdAt: now,
-    });
+    if (recordConsent) {
+      const consentRef = db.collection("marketingConsentEvents").doc();
+      transaction.set(consentRef, {
+        userId: decoded.uid,
+        optedIn: parsed.data.marketingOptIn,
+        source: parsed.data.source,
+        wordingVersion: "2026-06-14-v1",
+        createdAt: now,
+      });
+    }
   });
 
   const sessionCookie = await auth.createSessionCookie(parsed.data.idToken, { expiresIn: EXPIRES_IN });

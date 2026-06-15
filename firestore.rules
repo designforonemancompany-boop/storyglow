@@ -55,6 +55,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /printOrders/{orderId} {
+      allow read: if signedIn() && resource.data.owner_id == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /checkoutSessions/{sessionId} {
+      allow read: if signedIn() && resource.data.owner_id == request.auth.uid;
+      allow write: if false;
+    }
+
     match /shareLinks/{linkId} {
       allow read, write: if false;
     }

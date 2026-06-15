@@ -10,6 +10,7 @@ import {
   generateStoryText,
   moderateStoryBrief,
 } from "@/lib/google-ai";
+import { selectStoryEntitlement, type StoryEntitlement } from "@/lib/story-entitlements";
 import type { StoryBrief } from "@/lib/types";
 
 export const maxDuration = 300;
@@ -43,30 +44,58 @@ const BriefSchema = z.object({
 export async function POST(request: Request) {
   let storyId = "";
   let brief: StoryBrief | null = null;
+  let entitlement: StoryEntitlement | null = null;
+  let userId = "";
   try {
     const user = await requireApiUser();
+    userId = user.uid;
     const parsed = BriefSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
     brief = parsed.data as StoryBrief;
     const db = firestore();
-    const existing = await db.collection("stories").where("owner_id", "==", user.uid).get();
-    const activeCount = existing.docs.filter(doc => ["generating", "ready"].includes(doc.data().status)).length;
-    if (activeCount >= 10) return NextResponse.json({ error: "Current account limit reached" }, { status: 429 });
-
     const storyRef = db.collection("stories").doc();
     storyId = storyRef.id;
-    await storyRef.set({
-      owner_id: user.uid,
-      brief,
-      title: "Creating your story...",
-      dedication: "",
-      status: "generating",
-      cover_path: null,
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
+    await moderateStoryBrief(brief);
+    await db.runTransaction(async transaction => {
+      const profileRef = db.collection("profiles").doc(user.uid);
+      const storiesQuery = db.collection("stories").where("owner_id", "==", user.uid);
+      const [profile, existing] = await Promise.all([
+        transaction.get(profileRef),
+        transaction.get(storiesQuery),
+      ]);
+      if (existing.docs.some(doc => doc.data().status === "generating")) {
+        throw new Error("STORY_ALREADY_GENERATING");
+      }
+      const profileData = profile.data() || {};
+      entitlement = selectStoryEntitlement({
+        freeStoriesUsed: typeof profileData.freeStoriesUsed === "number"
+          ? profileData.freeStoriesUsed
+          : undefined,
+        storybookCredits: Number(profileData.storybookCredits || 0),
+        hasExistingStory: existing.docs.some(doc => doc.data().status !== "failed"),
+      });
+      if (!entitlement) throw new Error("STORY_CREDIT_REQUIRED");
+
+      transaction.set(profileRef, {
+        ...(entitlement === "free"
+          ? { freeStoriesUsed: 1 }
+          : { storybookCredits: FieldValue.increment(-1) }),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      transaction.set(storyRef, {
+        owner_id: user.uid,
+        brief,
+        title: "Creating your story...",
+        dedication: "",
+        status: "generating",
+        generation_entitlement: entitlement,
+        entitlement_refunded: false,
+        cover_path: null,
+        created_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      });
     });
 
-    await moderateStoryBrief(brief);
     const storyTextPromise = generateStoryText(brief);
     let familyPhoto: Buffer | undefined;
 
@@ -153,16 +182,58 @@ export async function POST(request: Request) {
   } catch (error) {
     if (brief?.photoPath) {
       await storageBucket().file(brief.photoPath).delete({ ignoreNotFound: true }).catch(() => undefined);
+      if (storyId) {
+        const audits = await firestore().collection("familyPhotoAudits")
+          .where("story_id", "==", storyId).where("storage_path", "==", brief.photoPath).get()
+          .catch(() => null);
+        await Promise.all(audits?.docs.map(doc => doc.ref.update({
+          deleted_at: FieldValue.serverTimestamp(),
+          deletion_status: "deleted_after_failure",
+        }).catch(() => undefined)) || []);
+      }
     }
     if (storyId) {
-      await firestore().collection("stories").doc(storyId).set({
-        status: "failed",
-        error_code: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN",
-        updated_at: FieldValue.serverTimestamp(),
-      }, { merge: true });
+      const db = firestore();
+      await db.runTransaction(async transaction => {
+        const storyRef = db.collection("stories").doc(storyId);
+        const profileRef = db.collection("profiles").doc(userId);
+        const story = await transaction.get(storyRef);
+        if (!story.exists) return;
+        const data = story.data() || {};
+        if (!data.entitlement_refunded && entitlement) {
+          transaction.set(profileRef, {
+            ...(entitlement === "free"
+              ? { freeStoriesUsed: FieldValue.increment(-1) }
+              : { storybookCredits: FieldValue.increment(1) }),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+        }
+        transaction.set(storyRef, {
+          status: "failed",
+          entitlement_refunded: Boolean(entitlement),
+          error_code: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN",
+          updated_at: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }).catch(() => undefined);
+      if (userId) {
+        const [partialFiles] = await storageBucket().getFiles({
+          prefix: `story-media/${userId}/${storyId}/`,
+        }).catch(() => [[]]);
+        await Promise.all(partialFiles.map(file =>
+          file.delete({ ignoreNotFound: true }).catch(() => undefined),
+        ));
+      }
     }
     if (error instanceof Error && error.message === "AUTH_REQUIRED") {
       return NextResponse.json({ error: "Sign in required" }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === "STORY_CREDIT_REQUIRED") {
+      return NextResponse.json({
+        error: "Your free story has been used. Earn or purchase a premium storybook credit to create another.",
+      }, { status: 402 });
+    }
+    if (error instanceof Error && error.message === "STORY_ALREADY_GENERATING") {
+      return NextResponse.json({ error: "Another story is still being created for this account." }, { status: 409 });
     }
     const message = error instanceof Error && error.message === "STORY_INPUT_BLOCKED"
       ? "Please revise these details for a child-safe story."

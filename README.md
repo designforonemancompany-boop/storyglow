@@ -16,6 +16,10 @@ with Next.js App Router, Firebase, and Google AI Studio.
 - Immediate deletion of the raw family photo after character-reference creation
 - Private mobile reader with narration, progress, playback speed, and sleep timer
 - Revocable private story-sharing links
+- One complete free story per verified account, followed by server-enforced
+  premium-credit usage with automatic refunds when generation fails
+- Stripe-hosted physical-book checkout with shipping details, signed webhook
+  confirmation, and private fulfillment status
 - Global bug/idea feedback and bedtime-audio cadence survey
 - Transactional alpha rewards: 5 credits for the first feedback from the first
   20 testers, then 1 credit after feedback on a second distinct story
@@ -60,11 +64,33 @@ GEMINI_IMAGE_MODEL=gemini-3.1-flash-image-preview
 GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
 FEEDBACK_WEBHOOK_URL=
 FEEDBACK_WEBHOOK_SECRET=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+PHYSICAL_BOOK_PRICE_CENTS=4900
+PHYSICAL_BOOK_SHIPPING_CENTS=800
 ```
 
 `FIREBASE_PRIVATE_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, and
-`FEEDBACK_WEBHOOK_SECRET` are server-only secrets. Never prefix them with
-`NEXT_PUBLIC_`.
+`FEEDBACK_WEBHOOK_SECRET`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET` are
+server-only secrets. Never prefix them with `NEXT_PUBLIC_`.
+
+## Physical-book checkout
+
+1. Create a Stripe account and copy its restricted server secret into
+   `STRIPE_SECRET_KEY`.
+2. Create a webhook endpoint for
+   `https://YOUR_DOMAIN/api/stripe/webhook`.
+3. Subscribe it to:
+   - `checkout.session.completed`
+   - `checkout.session.async_payment_succeeded`
+   - `checkout.session.async_payment_failed`
+4. Store the endpoint signing secret in `STRIPE_WEBHOOK_SECRET`.
+5. Set the book and shipping amounts in cents. Defaults are USD 49.00 plus USD
+   8.00 tracked shipping.
+
+Checkout uses Stripe-hosted payment pages. A `printOrders` record is created
+only after a signed webhook confirms payment, and browser clients cannot write
+order or credit records.
 
 ## Firebase setup
 

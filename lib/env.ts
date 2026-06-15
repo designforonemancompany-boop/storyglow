@@ -20,6 +20,10 @@ const serverSchema = publicSchema.extend({
   GEMINI_TTS_MODEL: z.string().default("gemini-2.5-flash-preview-tts"),
   FEEDBACK_WEBHOOK_URL: z.string().url().optional(),
   FEEDBACK_WEBHOOK_SECRET: z.string().min(16).optional(),
+  STRIPE_SECRET_KEY: z.string().min(16).optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().min(16).optional(),
+  PHYSICAL_BOOK_PRICE_CENTS: z.coerce.number().int().min(1000).default(4900),
+  PHYSICAL_BOOK_SHIPPING_CENTS: z.coerce.number().int().min(0).default(800),
 });
 
 export function publicEnv() {
@@ -46,5 +50,9 @@ export function serverEnv() {
     GEMINI_TTS_MODEL: process.env.GEMINI_TTS_MODEL,
     FEEDBACK_WEBHOOK_URL: process.env.FEEDBACK_WEBHOOK_URL || undefined,
     FEEDBACK_WEBHOOK_SECRET: process.env.FEEDBACK_WEBHOOK_SECRET || undefined,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY || undefined,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET || undefined,
+    PHYSICAL_BOOK_PRICE_CENTS: process.env.PHYSICAL_BOOK_PRICE_CENTS,
+    PHYSICAL_BOOK_SHIPPING_CENTS: process.env.PHYSICAL_BOOK_SHIPPING_CENTS,
   });
 }

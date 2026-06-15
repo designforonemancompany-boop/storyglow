@@ -4,8 +4,8 @@ import test from "node:test";
 
 const read = path => readFile(path, "utf8");
 
-test("production Firebase and Google AI architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth] = await Promise.all([
+test("production Firebase, Google AI, and commerce architecture is present", async () => {
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -15,10 +15,13 @@ test("production Firebase and Google AI architecture is present", async () => {
     read("components/story-reader.tsx"),
     read("app/api/feedback/route.ts"),
     read("app/api/auth/session/route.ts"),
+    read("app/api/stories/[id]/checkout/route.ts"),
+    read("app/api/stripe/webhook/route.ts"),
   ]);
 
   assert.match(pkg, /"firebase"/);
   assert.match(pkg, /"firebase-admin"/);
+  assert.match(pkg, /"stripe"/);
   assert.doesNotMatch(pkg, /supabase|openai/i);
   assert.match(firestoreRules, /allow write: if false/);
   assert.match(firestoreRules, /resource\.data\.owner_id == request\.auth\.uid/);
@@ -36,6 +39,33 @@ test("production Firebase and Google AI architecture is present", async () => {
   assert.match(feedback, /rewardCredits = 1/);
   assert.match(auth, /createSessionCookie/);
   assert.match(auth, /email_verified/);
+  assert.match(generation, /selectStoryEntitlement/);
+  assert.match(generation, /storybookCredits: FieldValue\.increment\(-1\)/);
+  assert.match(generation, /entitlement_refunded/);
+  assert.match(checkout, /checkout\.sessions\.create/);
+  assert.match(checkout, /shipping_address_collection/);
+  assert.match(stripeWebhook, /constructEvent/);
+  assert.match(stripeWebhook, /printOrders/);
+  assert.match(firestoreRules, /match \/printOrders/);
+  assert.match(firestoreRules, /match \/checkoutSessions/);
+});
+
+test("story entitlement policy grants one free story and then consumes credits", async () => {
+  const { selectStoryEntitlement } = await import("../lib/story-entitlements.ts");
+  assert.equal(selectStoryEntitlement({
+    freeStoriesUsed: 0,
+    storybookCredits: 0,
+    hasExistingStory: false,
+  }), "free");
+  assert.equal(selectStoryEntitlement({
+    freeStoriesUsed: 1,
+    storybookCredits: 2,
+    hasExistingStory: true,
+  }), "credit");
+  assert.equal(selectStoryEntitlement({
+    storybookCredits: 0,
+    hasExistingStory: true,
+  }), null);
 });
 
 test("obsolete backend files are removed", async () => {
