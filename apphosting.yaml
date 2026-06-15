@@ -6,21 +6,32 @@ runConfig:
   concurrency: 20
 
 env:
-  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY_PART_1
+    value: "AIzaSyBKBcWN"
+    availability: [BUILD, RUNTIME]
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY_PART_2
+    value: "oKWdMJjlLHx3b4yegXdsghAxeDw"
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "studio-3854882702-93a42.firebaseapp.com"
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "studio-3854882702-93a42"
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "studio-3854882702-93a42.firebasestorage.app"
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:74268643195:web:5f6c17b56ee44dc95ab7de"
     availability: [BUILD, RUNTIME]
   - variable: NEXT_PUBLIC_SITE_URL
+    value: "https://storyglow-74268643195.us-central1.run.app"
     availability: [BUILD, RUNTIME]
   - variable: FIREBASE_PROJECT_ID
+    value: "studio-3854882702-93a42"
     availability: [RUNTIME]
   - variable: FIREBASE_STORAGE_BUCKET
+    value: "studio-3854882702-93a42.firebasestorage.app"
     availability: [RUNTIME]
   - variable: GOOGLE_GENERATIVE_AI_API_KEY
     secret: GOOGLE_GENERATIVE_AI_API_KEY

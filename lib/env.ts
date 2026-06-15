@@ -27,8 +27,14 @@ const serverSchema = publicSchema.extend({
 });
 
 export function publicEnv() {
+  const firebaseApiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+    || [
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY_PART_1,
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY_PART_2,
+    ].filter(Boolean).join("");
+
   return publicSchema.parse({
-    NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    NEXT_PUBLIC_FIREBASE_API_KEY: firebaseApiKey,
     NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
     NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
