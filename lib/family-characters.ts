@@ -50,13 +50,13 @@ export function familyCharacterFromDoc(doc: FirebaseFirestore.QueryDocumentSnaps
 }
 
 export async function findReusableFamilyCharacter(userId: string, brief: StoryBrief) {
+  const childKey = normalizeName(brief.childName);
   const snapshot = await firestore().collection("familyCharacters")
     .where("owner_id", "==", userId)
-    .where("child_key", "==", normalizeName(brief.childName))
-    .where("status", "==", "active")
-    .limit(10)
+    .limit(50)
     .get();
   const doc = snapshot.docs
+    .filter(doc => doc.data().child_key === childKey && doc.data().status === "active")
     .sort((a, b) => {
       const aDate = a.data().last_used_at?.toMillis?.() || 0;
       const bDate = b.data().last_used_at?.toMillis?.() || 0;
