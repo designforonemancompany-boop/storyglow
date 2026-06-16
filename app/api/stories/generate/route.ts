@@ -247,7 +247,7 @@ async function completeStoryGeneration({
 
     const narrationWarmupCount = Math.min(2, pageRecords.length);
     generationStage = "narration_warmup";
-    const warmedNarration = await Promise.all(
+    const narrationWarmupResults = await Promise.allSettled(
       pageRecords.slice(0, narrationWarmupCount).map(page =>
         renderNarrationAsset({
           userId,
@@ -258,9 +258,20 @@ async function completeStoryGeneration({
         }),
       ),
     );
-    warmedNarration.forEach((narration, index) => {
-      pageRecords[index].narration_path = narration.narrationPath;
-      pageRecords[index].narration_duration_ms = narration.narrationDurationMs;
+    const narrationWarmupFailures: string[] = [];
+    narrationWarmupResults.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        pageRecords[index].narration_path = result.value.narrationPath;
+        pageRecords[index].narration_duration_ms = result.value.narrationDurationMs;
+        return;
+      }
+      narrationWarmupFailures.push(`page_${pageRecords[index].page_number}`);
+      console.warn("Narration warmup failed; story will remain readable", {
+        storyId,
+        userId,
+        pageNumber: pageRecords[index].page_number,
+        message: result.reason instanceof Error ? result.reason.message : "UNKNOWN",
+      });
     });
 
     generationStage = "firestore_commit";
@@ -272,6 +283,7 @@ async function completeStoryGeneration({
     const reviewFlags = [
       ...(!familyCharacterId ? ["missing_family_character_reference"] : []),
       ...(brief.memory.toLowerCase().includes("handbag") ? ["adult_accessory_scene_requires_review"] : []),
+      ...(narrationWarmupFailures.length ? ["narration_warmup_retry_needed"] : []),
     ];
     for (const page of pageRecords) {
       batch.set(storyRef.collection("pages").doc(String(page.page_number).padStart(2, "0")), page);
@@ -314,6 +326,7 @@ async function completeStoryGeneration({
       notes: reviewFlags.length
         ? "Automatic checks found items for parent or admin review before physical printing."
         : "Prompt-level consistency checks passed for digital delivery.",
+      narration_warmup_failures: narrationWarmupFailures,
       created_at: FieldValue.serverTimestamp(),
     });
     batch.update(storyRef, {

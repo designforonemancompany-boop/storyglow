@@ -64,19 +64,42 @@ type GeminiResponse = {
 
 async function generateContent(model: string, payload: object) {
   const { GOOGLE_GENERATIVE_AI_API_KEY } = serverEnv();
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GOOGLE_GENERATIVE_AI_API_KEY)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(240_000),
-    },
-  );
-  const result = await response.json() as GeminiResponse;
-  if (!response.ok || result.error) throw new Error(result.error?.message || `GEMINI_HTTP_${response.status}`);
-  if (result.promptFeedback?.blockReason) throw new Error("STORY_INPUT_BLOCKED");
-  return result;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GOOGLE_GENERATIVE_AI_API_KEY)}`;
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(240_000),
+      });
+      const text = await response.text();
+      const result = text ? JSON.parse(text) as GeminiResponse : {};
+      if (result.promptFeedback?.blockReason) throw new Error("STORY_INPUT_BLOCKED");
+      if (!response.ok || result.error) {
+        const message = result.error?.message || `GEMINI_HTTP_${response.status}`;
+        const transient = [408, 429, 500, 502, 503, 504].includes(response.status);
+        if (transient && attempt < 3) {
+          lastError = new Error(message);
+          await new Promise(resolve => setTimeout(resolve, attempt * 1200));
+          continue;
+        }
+        throw new Error(message);
+      }
+      return result;
+    } catch (error) {
+      if (error instanceof Error && error.message === "STORY_INPUT_BLOCKED") throw error;
+      lastError = error;
+      if (attempt < 3) {
+        await new Promise(resolve => setTimeout(resolve, attempt * 1200));
+        continue;
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("GEMINI_REQUEST_FAILED");
 }
 
 function textFrom(result: GeminiResponse) {
