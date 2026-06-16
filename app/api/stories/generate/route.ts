@@ -9,7 +9,6 @@ import {
   generateCoverIllustration,
   generatePageIllustration,
   generateStoryText,
-  moderateStoryBrief,
 } from "@/lib/google-ai";
 import { renderNarrationAsset } from "@/lib/narration";
 import { selectStoryEntitlement, type StoryEntitlement } from "@/lib/story-entitlements";
@@ -123,8 +122,6 @@ async function completeStoryGeneration({
   try {
     const db = firestore();
     const generationReviewFlags: string[] = [];
-    generationStage = "moderation";
-    await moderateStoryBrief(brief);
 
     generationStage = "story_text";
     const storyTextPromise = generateStoryText(brief);

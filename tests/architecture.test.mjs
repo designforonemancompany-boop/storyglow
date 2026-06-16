@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library, versionRoute] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -22,6 +22,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("lib/family-characters.ts"),
     read("app/settings/page.tsx"),
     read("app/library/page.tsx"),
+    read("app/api/version/route.ts"),
   ]);
 
   assert.match(pkg, /"firebase"/);
@@ -45,6 +46,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(generation, /all_illustrations_retry_needed/);
   assert.match(generation, /firestore_text_commit/);
   assert.match(generation, /media_generation_status/);
+  assert.doesNotMatch(generation, /generationStage = "moderation"/);
+  assert.doesNotMatch(generation, /moderateStoryBrief/);
   assert.doesNotMatch(generation, /cover_path: pageRecords\[0\]\?\.illustration_path/);
   assert.match(googleAi, /gemini-3\.1-flash-image-preview|GEMINI_IMAGE_MODEL/);
   assert.match(googleAi, /Warm, whimsical, premium custom children's-book illustration/);
@@ -86,6 +89,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(settings, /CharacterRefinementForm/);
   assert.match(library, /Story snapshot/);
   assert.match(firebaseConfig, /publicEnv/);
+  assert.match(versionRoute, /K_REVISION/);
   assert.doesNotMatch(firebaseConfig, /GOOGLE_GENERATIVE_AI_API_KEY|STRIPE_SECRET_KEY/);
 });
 
