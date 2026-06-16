@@ -10,8 +10,9 @@ import {
   generateStoryText,
   moderateStoryBrief,
 } from "@/lib/google-ai";
+import { renderNarrationAsset } from "@/lib/narration";
 import { selectStoryEntitlement, type StoryEntitlement } from "@/lib/story-entitlements";
-import type { StoryBrief } from "@/lib/types";
+import type { StoryBrief, StoryPageRecord } from "@/lib/types";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -155,7 +156,7 @@ async function completeStoryGeneration({
       metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
     });
 
-    const pageRecords = [];
+    const pageRecords: Array<Omit<StoryPageRecord, "id" | "story_id"> & { created_at: FirebaseFirestore.FieldValue }> = [];
     for (let index = 0; index < book.pages.length; index += 3) {
       const group = book.pages.slice(index, index + 3);
       const images = await Promise.all(group.map((page, offset) =>
@@ -180,6 +181,23 @@ async function completeStoryGeneration({
         });
       }
     }
+
+    const narrationWarmupCount = Math.min(2, pageRecords.length);
+    const warmedNarration = await Promise.all(
+      pageRecords.slice(0, narrationWarmupCount).map(page =>
+        renderNarrationAsset({
+          userId,
+          storyId,
+          pageNumber: page.page_number,
+          title: page.title,
+          body: page.body,
+        }),
+      ),
+    );
+    warmedNarration.forEach((narration, index) => {
+      pageRecords[index].narration_path = narration.narrationPath;
+      pageRecords[index].narration_duration_ms = narration.narrationDurationMs;
+    });
 
     const batch = db.batch();
     const storyRef = db.collection("stories").doc(storyId);

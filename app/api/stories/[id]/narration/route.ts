@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiUser } from "@/lib/auth";
 import { ownedStory } from "@/lib/firestore-data";
-import { firestore, storageBucket } from "@/lib/firebase/admin";
-import { generateNarrationAudio } from "@/lib/google-ai";
+import { firestore } from "@/lib/firebase/admin";
 import { signMediaPath } from "@/lib/media";
+import { renderNarrationAsset } from "@/lib/narration";
 
 export const maxDuration = 120;
 
@@ -24,14 +24,18 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!page.exists) return NextResponse.json({ error: "Page not found" }, { status: 404 });
     let narrationPath = page.data()?.narration_path as string | null;
     if (!narrationPath) {
-      const audio = await generateNarrationAudio(page.data()?.title, page.data()?.body);
-      narrationPath = `story-media/${user.uid}/${id}/page-${parsed.data.pageNumber}.wav`;
-      await storageBucket().file(narrationPath).save(audio, {
-        resumable: false,
-        contentType: "audio/wav",
-        metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: user.uid, storyId: id } },
+      const rendered = await renderNarrationAsset({
+        userId: user.uid,
+        storyId: id,
+        pageNumber: parsed.data.pageNumber,
+        title: page.data()?.title,
+        body: page.data()?.body,
       });
-      await pageRef.update({ narration_path: narrationPath });
+      narrationPath = rendered.narrationPath;
+      await pageRef.update({
+        narration_path: narrationPath,
+        narration_duration_ms: rendered.narrationDurationMs,
+      });
     }
     return NextResponse.json({ narrationUrl: await signMediaPath(narrationPath) });
   } catch (error) {

@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { firebaseBrowserAuth } from "@/lib/firebase/browser";
 
-export function SignInForm() {
+export function SignInForm({ nextPath }: { nextPath: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [marketing, setMarketing] = useState(false);
@@ -21,8 +21,9 @@ export function SignInForm() {
     setBusy(true);
     setMessage("");
     try {
+      localStorage.setItem("storyglow-post-auth-path", nextPath);
       await sendSignInLinkToEmail(await firebaseBrowserAuth(), email, {
-        url: `${location.origin}/auth/callback`,
+        url: `${location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`,
         handleCodeInApp: true,
       });
       localStorage.setItem("storyglow-email", email);
@@ -47,7 +48,8 @@ export function SignInForm() {
         body: JSON.stringify({ idToken, marketingOptIn: marketing, source: "google_signin" }),
       });
       if (!response.ok) throw new Error("Could not create your StoryGlow session.");
-      router.push("/create");
+      localStorage.removeItem("storyglow-post-auth-path");
+      router.push(nextPath);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Google sign-in failed.");

@@ -39,7 +39,7 @@ export function CreateStoryForm({ isSignedIn }: { isSignedIn: boolean }) {
       const draft = Object.fromEntries([...form.entries()]
         .filter((entry): entry is [string, string] => typeof entry[1] === "string"));
       sessionStorage.setItem("storyglow-story-draft", JSON.stringify(draft));
-      router.push("/signin");
+      router.push("/signin?next=/create");
       return;
     }
     setBusy(true);

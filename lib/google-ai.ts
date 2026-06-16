@@ -42,7 +42,10 @@ designs, gentle gouache and colored-pencil detail, sophisticated page compositio
 and a cohesive palette of parchment white, midnight navy, sky blue, marigold,
 raspberry coral, and leaf green. Preserve exact illustrated character identity,
 skin tone, hair, age, facial proportions, clothing motifs, and family relationships.
-No logos, readable words, watermark, uncanny realism, or glossy 3D rendering.
+Adult-only features such as facial hair, glasses, handbags, or accessories must stay
+with the correctly labeled adult and must never migrate onto the child unless the brief
+explicitly says the child is wearing that same item in the scene. No logos, readable
+words, watermark, uncanny realism, or glossy 3D rendering.
 `;
 
 type GeminiPart = {
@@ -138,12 +141,16 @@ Memorable detail: ${brief.memory}
 Requirements:
 - Exactly 10 to 12 pages.
 - Short, lyrical, read-aloud prose appropriate for age ${brief.age}.
+- Keep page titles brief and elegant, usually 2 to 5 words, never loud or salesy.
+- Word count target by page: ages 2-3 use about 40-80 words, ages 4-5 use about 60-110 words, ages 6-8 use about 90-150 words.
 - Center family love, belonging, emotional safety, and the joy of watching the child grow.
 - Make the supplied event and memorable detail central and specific.
 - Never shame the child or reinforce rigid gender roles.
 - No violence, frightening peril, romance, unsafe imitation, adult cosmetics instruction, or brands.
 - Finish calmly with the child safe, loved, and ready for sleep.
-- Give every page a concrete illustration scene with the same characters and clothing.`,
+- Use a clear emotional arc: cozy setup, playful discovery, heartfelt family reflection, then a calm bedtime landing.
+- Give every page a concrete illustration scene with the same characters and clothing.
+- The main child must always read like the same child from page to page, and adult traits must never be transferred onto the child.`,
       }],
     }],
     generationConfig: {
@@ -169,7 +176,11 @@ Main child: ${brief.childName}, age ${brief.age}, ${brief.characterTraits}.
 Family: ${brief.grownUps || "loving parent or guardian"}.
 ${familyPhoto ? `Use the supplied family photograph only as a private visual reference. Manual role labels: ${roleDescription(brief.familyRoles)}. Translate recognizable high-level features into gentle cartoon storybook characters without copying the photograph, background, pose, or clothing.` : ""}
 Show each character once, full body, neutral friendly pose, consistent proportions,
-simple clothing palette, and an uncluttered parchment background.`;
+simple clothing palette, and an uncluttered parchment background.
+Create a visual character bible: assign each person a stable silhouette, hair shape,
+skin tone, clothing palette, and role-specific accessories. Never give adult-only
+features such as beards, glasses, or handbags to the child unless the prompt explicitly
+requests the child wearing that item in a scene.`;
 
   const parts: GeminiPart[] = [{ text: prompt }];
   if (familyPhoto) parts.push({ inlineData: { mimeType: photoMime, data: familyPhoto.toString("base64") } });
@@ -203,7 +214,10 @@ Page title context: ${pageTitle}
 Scene: ${sceneDescription}
 Landscape double-page composition, clear focal action, safe age-appropriate
 environment, and quiet space for separately rendered HTML story text.
-Do not place text inside the illustration.`,
+Keep clothing, scale, face shape, skin tone, and role-specific accessories consistent
+with the reference sheet. Do not add facial hair, glasses, or adult accessories to the
+child unless the scene description explicitly calls for it. Do not place text inside the
+illustration.`,
         },
       ],
     }],

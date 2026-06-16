@@ -25,9 +25,13 @@ export default function AuthCallbackPage() {
           body: JSON.stringify({ idToken, marketingOptIn, source: "email_signin" }),
         });
         if (!response.ok) throw new Error("Could not create your StoryGlow session.");
+        const nextPath = new URL(window.location.href).searchParams.get("next")
+          || window.localStorage.getItem("storyglow-post-auth-path")
+          || "/library";
         window.localStorage.removeItem("storyglow-email");
         window.localStorage.removeItem("storyglow-pending-marketing");
-        router.replace("/create");
+        window.localStorage.removeItem("storyglow-post-auth-path");
+        router.replace(nextPath);
         router.refresh();
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Sign-in failed.");
@@ -57,7 +61,11 @@ export default function AuthCallbackPage() {
         body: JSON.stringify({ idToken, marketingOptIn: false, source: "email_signin" }),
       });
       if (!response.ok) throw new Error("Could not create your StoryGlow session.");
-      router.replace("/create");
+      const nextPath = new URL(window.location.href).searchParams.get("next")
+        || window.localStorage.getItem("storyglow-post-auth-path")
+        || "/library";
+      window.localStorage.removeItem("storyglow-post-auth-path");
+      router.replace(nextPath);
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Sign-in failed.");
