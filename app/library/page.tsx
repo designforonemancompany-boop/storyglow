@@ -45,7 +45,15 @@ export default async function LibraryPage() {
           <div className="story-grid">
             {cards.map(story => (
               <article className="library-card" key={story.id}>
-                <Image src={story.coverUrl || "/assets/birthday-story-scenes.png"} width={720} height={450} alt="" unoptimized={Boolean(story.coverUrl)} />
+                {story.coverUrl ? (
+                  <Image src={story.coverUrl} width={720} height={450} alt="" unoptimized />
+                ) : (
+                  <div className="library-cover-placeholder">
+                    <span>StoryGlow</span>
+                    <strong>{story.title}</strong>
+                    <small>Personalized cover preparing</small>
+                  </div>
+                )}
                 <div className="library-card-body">
                   <span className="status-pill">{story.status}</span>
                   <h2>{story.title}</h2>

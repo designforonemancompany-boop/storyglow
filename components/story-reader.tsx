@@ -18,6 +18,23 @@ type ReaderCover = {
   dedication?: string;
 };
 
+function buildInitialNarrationCache(pages: ReaderPage[]) {
+  return pages.reduce<Record<number, string>>((cache, page) => {
+    if (page.narration_url) cache[page.page_number] = page.narration_url;
+    return cache;
+  }, {});
+}
+
+function PendingIllustration({ kind }: { kind: "cover" | "page" }) {
+  return (
+    <div className="pending-illustration" role="img" aria-label={`${kind} illustration is still being prepared`}>
+      <span className="book-star">*</span>
+      <strong>{kind === "cover" ? "Cover illustration is being prepared" : "Illustration is being prepared"}</strong>
+      <small>Your story text is ready. Personalized art will appear here when generation completes.</small>
+    </div>
+  );
+}
+
 export function StoryReader({
   storyId,
   title,
@@ -37,10 +54,12 @@ export function StoryReader({
   initialRate?: number;
   cover?: ReaderCover;
 }) {
+  const initialPageIndex = Math.max(0, Math.min(pages.length - 1, initialPage - 1));
   const [showCover, setShowCover] = useState(Boolean(cover?.image_url && initialPage <= 1 && initialPosition === 0));
-  const [pageIndex, setPageIndex] = useState(Math.max(0, Math.min(pages.length - 1, initialPage - 1)));
+  const [pageIndex, setPageIndex] = useState(initialPageIndex);
   const [rate, setRate] = useState(initialRate);
-  const [audioUrl, setAudioUrl] = useState(pages[Math.max(0, Math.min(pages.length - 1, initialPage - 1))]?.narration_url || null);
+  const [narrationCache, setNarrationCache] = useState<Record<number, string>>(() => buildInitialNarrationCache(pages));
+  const [audioUrl, setAudioUrl] = useState(pages[initialPageIndex]?.narration_url || null);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [audioPrepared, setAudioPrepared] = useState(false);
@@ -52,6 +71,10 @@ export function StoryReader({
   const countdownRef = useRef<number | null>(null);
   const continuePlaybackRef = useRef(false);
   const page = pages[pageIndex];
+
+  function rememberNarration(pageNumber: number, url: string) {
+    setNarrationCache(current => current[pageNumber] === url ? current : { ...current, [pageNumber]: url });
+  }
 
   async function saveProgress(audioPositionMs: number) {
     if (sample || showCover) return;
@@ -68,9 +91,10 @@ export function StoryReader({
   }
 
   useEffect(() => {
-    setAudioUrl(page.narration_url);
+    const preparedUrl = narrationCache[page.page_number] || page.narration_url || null;
+    setAudioUrl(preparedUrl);
     setPlaying(false);
-    setAudioPrepared(false);
+    setAudioPrepared(Boolean(preparedUrl));
     setAudioError("");
     if (audioRef.current) {
       audioRef.current.pause();
@@ -99,17 +123,24 @@ export function StoryReader({
 
     async function warmNarration() {
       try {
-        if (!page.narration_url && !audioUrl) {
+        const currentUrl = narrationCache[page.page_number] || page.narration_url || audioUrl;
+        if (!currentUrl) {
           const currentUrl = await prefetchNarration(page.page_number);
           if (!cancelled) {
+            rememberNarration(page.page_number, currentUrl);
             setAudioUrl(currentUrl);
             setAudioPrepared(true);
           }
         }
 
         const nextPage = pages[pageIndex + 1];
-        if (nextPage && !nextPage.narration_url) {
-          void prefetchNarration(nextPage.page_number);
+        const nextUrl = nextPage ? narrationCache[nextPage.page_number] || nextPage.narration_url : null;
+        if (nextPage && !nextUrl) {
+          void prefetchNarration(nextPage.page_number)
+            .then(url => {
+              if (!cancelled) rememberNarration(nextPage.page_number, url);
+            })
+            .catch(() => undefined);
         }
       } catch {
         // Best-effort preloading should never block reading.
@@ -120,7 +151,7 @@ export function StoryReader({
     return () => {
       cancelled = true;
     };
-  }, [audioUrl, page.narration_url, page.page_number, pageIndex, pages, sample, showCover, storyId]);
+  }, [audioUrl, narrationCache, page.narration_url, page.page_number, pageIndex, pages, sample, showCover, storyId]);
 
   useEffect(() => {
     if (!sleepTimerEndsAt) {
@@ -159,7 +190,11 @@ export function StoryReader({
   }, []);
 
   async function ensureAudio() {
-    if (audioUrl) return { url: audioUrl, prepared: audioPrepared };
+    const preparedUrl = narrationCache[page.page_number] || audioUrl;
+    if (preparedUrl) {
+      if (preparedUrl !== audioUrl) setAudioUrl(preparedUrl);
+      return { url: preparedUrl, prepared: true };
+    }
     if (sample) return { url: null, prepared: false };
     setBusy(true);
     setAudioError("");
@@ -171,6 +206,7 @@ export function StoryReader({
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
+      rememberNarration(page.page_number, result.narrationUrl);
       setAudioUrl(result.narrationUrl);
       setAudioPrepared(true);
       return { url: result.narrationUrl as string, prepared: true };
@@ -207,6 +243,10 @@ export function StoryReader({
       return;
     }
     if (!audioRef.current || !url) return;
+    if (audioRef.current.src !== url) {
+      audioRef.current.src = url;
+      audioRef.current.load();
+    }
     audioRef.current.playbackRate = rate;
     if (audioRef.current.currentTime === 0 && pageIndex === initialPage - 1) {
       audioRef.current.currentTime = initialPosition / 1000;
@@ -274,7 +314,13 @@ export function StoryReader({
       {showCover ? (
         <div className="reader-canvas cover-canvas">
           <div className="reader-image">
-            <Image src={cover?.image_url || "/assets/birthday-story-scenes.png"} fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized={Boolean(cover?.image_url)} />
+            {cover?.image_url ? (
+              <Image src={cover.image_url} fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
+            ) : sample ? (
+              <Image src="/assets/birthday-story-scenes.png" fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
+            ) : (
+              <PendingIllustration kind="cover" />
+            )}
           </div>
           <article className="reader-copy cover-copy">
             <p className="section-label">Story cover</p>
@@ -286,7 +332,13 @@ export function StoryReader({
       ) : (
         <div className="reader-canvas">
           <div className="reader-image">
-            <Image src={page.illustration_url || "/assets/birthday-story-scenes.png"} fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized={Boolean(page.illustration_url)} />
+            {page.illustration_url ? (
+              <Image src={page.illustration_url} fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
+            ) : sample ? (
+              <Image src="/assets/birthday-story-scenes.png" fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
+            ) : (
+              <PendingIllustration kind="page" />
+            )}
           </div>
           <article className="reader-copy">
             <p className="section-label">Page {page.page_number} of {pages.length}</p>
