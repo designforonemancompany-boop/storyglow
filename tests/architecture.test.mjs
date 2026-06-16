@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -18,6 +18,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("app/api/stories/[id]/checkout/route.ts"),
     read("app/api/stripe/webhook/route.ts"),
     read("app/api/firebase-config/route.ts"),
+    read("lib/feedback.ts"),
   ]);
 
   assert.match(pkg, /"firebase"/);
@@ -38,6 +39,10 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(reader, /\/api\/progress/);
   assert.match(feedback, /rewardCredits = 5/);
   assert.match(feedback, /rewardCredits = 1/);
+  assert.match(feedbackReview, /feedbackReviews/);
+  assert.match(feedbackReview, /proposed_solution/);
+  assert.match(feedbackReview, /needs_review/);
+  assert.match(firestoreRules, /match \/feedbackReviews/);
   assert.match(auth, /createSessionCookie/);
   assert.match(auth, /email_verified/);
   assert.match(generation, /selectStoryEntitlement/);

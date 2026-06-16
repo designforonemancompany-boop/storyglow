@@ -144,6 +144,7 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
 .role-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .reader-shell { min-height: 100vh; padding: 28px; color: white; background: var(--ink); }
 .reader-topbar { max-width: 1300px; margin: 0 auto 24px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.reader-top-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: flex-end; }
 .reader-canvas { max-width: 1300px; margin: auto; display: grid; grid-template-columns: 1.25fr .75fr; min-height: 620px; background: var(--paper); color: var(--ink); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow); }
 .reader-image { position: relative; background: #dfead6; }
 .reader-image img { width: 100%; height: 100%; object-fit: cover; }
@@ -153,6 +154,9 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
 .reader-bottom .track { min-width: 180px; flex: 1; }
 .speed-select { width: auto; margin: 0; color: var(--ink); background: white; }
 .status-pill { padding: 6px 10px; border-radius: 99px; color: var(--ink); background: var(--gold); font-size: .78rem; font-weight: 800; }
+.reader-account-pill, .timer-pill { display: inline-flex; align-items: center; min-height: 40px; padding: 8px 12px; border-radius: 99px; }
+.reader-account-pill { color: white; background: rgba(255,255,255,.14); font-size: .8rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.timer-pill { color: var(--ink); background: #fff1bf; font-weight: 700; }
 .empty-state { padding: 70px; text-align: center; background: white; border: 1px dashed #b8aa90; border-radius: 18px; }
 .credit-balance { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; color: var(--ink); background: #fff1bf; border-radius: 99px; }
 .credit-balance strong { font-size: 1.35rem; }
@@ -214,6 +218,8 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
   .creation-grid, .reader-canvas { grid-template-columns: 1fr; }
   .creation-aside { position: static; }
   .reader-shell { padding: 15px; }
+  .reader-topbar { align-items: flex-start; flex-direction: column; }
+  .reader-top-actions { justify-content: flex-start; }
   .reader-canvas { min-height: auto; }
   .reader-image { min-height: 340px; }
   .reader-copy { min-height: 360px; }
