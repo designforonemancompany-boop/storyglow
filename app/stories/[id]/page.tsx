@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { StoryReader } from "@/components/story-reader";
+import { StoryGenerationStatus } from "@/components/story-generation-status";
 import { requireUser } from "@/lib/auth";
 import { firestore } from "@/lib/firebase/admin";
 import { ownedStory, storyPages } from "@/lib/firestore-data";
@@ -13,7 +14,11 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
     storyPages(id),
     firestore().collection("profiles").doc(user.uid).collection("progress").doc(id).get(),
   ]);
-  if (!story || !["ready", "archived"].includes(story.status)) notFound();
+  if (!story) notFound();
+  if (story.status === "generating" || story.status === "failed") {
+    return <StoryGenerationStatus status={story.status} title={story.title} />;
+  }
+  if (!["ready", "archived"].includes(story.status)) notFound();
   const pages = await signStoryPages(records);
   return <StoryReader storyId={story.id} title={story.title} pages={pages.map(page => ({
     page_number: page.page_number,

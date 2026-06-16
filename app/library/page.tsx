@@ -51,6 +51,8 @@ export default async function LibraryPage() {
                   <h2>{story.title}</h2>
                   <p>{story.dedication || "A private StoryGlow book."}</p>
                   {story.status === "ready" || story.status === "archived" ? <Link className="button" href={`/stories/${story.id}`}>Read or listen</Link> : null}
+                  {story.status === "generating" ? <Link className="button" href={`/stories/${story.id}`}>View progress</Link> : null}
+                  {story.status === "failed" ? <Link className="button" href={`/stories/${story.id}`}>See retry details</Link> : null}
                   <LibraryActions
                     storyId={story.id}
                     archived={story.status === "archived"}

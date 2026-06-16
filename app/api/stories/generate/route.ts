@@ -1,5 +1,5 @@
 import { FieldValue } from "firebase-admin/firestore";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import sharp from "sharp";
 import { z } from "zod";
 import { requireApiUser } from "@/lib/auth";
@@ -41,21 +41,174 @@ const BriefSchema = z.object({
   }
 });
 
+async function markGenerationFailed({
+  storyId,
+  userId,
+  brief,
+  entitlement,
+  error,
+}: {
+  storyId: string;
+  userId: string;
+  brief: StoryBrief;
+  entitlement: StoryEntitlement;
+  error: unknown;
+}) {
+  if (brief.photoPath) {
+    await storageBucket().file(brief.photoPath).delete({ ignoreNotFound: true }).catch(() => undefined);
+    const audits = await firestore().collection("familyPhotoAudits")
+      .where("story_id", "==", storyId).where("storage_path", "==", brief.photoPath).get()
+      .catch(() => null);
+    await Promise.all(audits?.docs.map(doc => doc.ref.update({
+      deleted_at: FieldValue.serverTimestamp(),
+      deletion_status: "deleted_after_failure",
+    }).catch(() => undefined)) || []);
+  }
+
+  const db = firestore();
+  await db.runTransaction(async transaction => {
+    const storyRef = db.collection("stories").doc(storyId);
+    const profileRef = db.collection("profiles").doc(userId);
+    const story = await transaction.get(storyRef);
+    if (!story.exists) return;
+    const data = story.data() || {};
+    if (!data.entitlement_refunded) {
+      transaction.set(profileRef, {
+        ...(entitlement === "free"
+          ? { freeStoriesUsed: FieldValue.increment(-1) }
+          : { storybookCredits: FieldValue.increment(1) }),
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+    transaction.set(storyRef, {
+      status: "failed",
+      entitlement_refunded: true,
+      error_code: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN",
+      updated_at: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }).catch(() => undefined);
+
+  const [partialFiles] = await storageBucket().getFiles({
+    prefix: `story-media/${userId}/${storyId}/`,
+  }).catch(() => [[]]);
+  await Promise.all(partialFiles.map(file =>
+    file.delete({ ignoreNotFound: true }).catch(() => undefined),
+  ));
+}
+
+async function completeStoryGeneration({
+  storyId,
+  userId,
+  brief,
+  entitlement,
+}: {
+  storyId: string;
+  userId: string;
+  brief: StoryBrief;
+  entitlement: StoryEntitlement;
+}) {
+  try {
+    const db = firestore();
+    await moderateStoryBrief(brief);
+
+    const storyTextPromise = generateStoryText(brief);
+    let familyPhoto: Buffer | undefined;
+
+    if (brief.photoPath) {
+      const expectedPrefix = `family-uploads/${userId}/`;
+      if (!brief.photoPath.startsWith(expectedPrefix)) throw new Error("INVALID_PHOTO_PATH");
+      const [sourcePhoto] = await storageBucket().file(brief.photoPath).download();
+      familyPhoto = await sharp(sourcePhoto).rotate().resize({
+        width: 1600,
+        height: 1600,
+        fit: "inside",
+        withoutEnlargement: true,
+      }).jpeg({ quality: 90 }).toBuffer();
+      await db.collection("familyPhotoAudits").add({
+        user_id: userId,
+        story_id: storyId,
+        storage_path: brief.photoPath,
+        role_labels: brief.familyRoles || [],
+        consent_version: "2026-06-14-v1",
+        deletion_status: "pending",
+        uploaded_at: FieldValue.serverTimestamp(),
+      });
+    }
+
+    const characterReference = await createCharacterReference(brief, familyPhoto, "image/jpeg");
+    if (brief.photoPath) {
+      await storageBucket().file(brief.photoPath).delete({ ignoreNotFound: true });
+      const audits = await db.collection("familyPhotoAudits")
+        .where("story_id", "==", storyId).where("storage_path", "==", brief.photoPath).get();
+      await Promise.all(audits.docs.map(doc => doc.ref.update({
+        deleted_at: FieldValue.serverTimestamp(),
+        deletion_status: "deleted",
+      })));
+      familyPhoto = undefined;
+    }
+
+    const book = await storyTextPromise;
+    const characterPath = `story-media/${userId}/${storyId}/character-reference.png`;
+    await storageBucket().file(characterPath).save(characterReference, {
+      resumable: false,
+      contentType: "image/png",
+      metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
+    });
+
+    const pageRecords = [];
+    for (let index = 0; index < book.pages.length; index += 3) {
+      const group = book.pages.slice(index, index + 3);
+      const images = await Promise.all(group.map((page, offset) =>
+        generatePageIllustration(characterReference, page.title, page.sceneDescription, index + offset + 1),
+      ));
+      for (let offset = 0; offset < group.length; offset += 1) {
+        const pageNumber = index + offset + 1;
+        const path = `story-media/${userId}/${storyId}/page-${pageNumber}.png`;
+        await storageBucket().file(path).save(images[offset], {
+          resumable: false,
+          contentType: "image/png",
+          metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
+        });
+        pageRecords.push({
+          page_number: pageNumber,
+          title: group[offset].title,
+          body: group[offset].text,
+          illustration_path: path,
+          narration_path: null,
+          narration_duration_ms: null,
+          created_at: FieldValue.serverTimestamp(),
+        });
+      }
+    }
+
+    const batch = db.batch();
+    const storyRef = db.collection("stories").doc(storyId);
+    for (const page of pageRecords) {
+      batch.set(storyRef.collection("pages").doc(String(page.page_number).padStart(2, "0")), page);
+    }
+    batch.update(storyRef, {
+      title: book.title,
+      dedication: book.dedication,
+      cover_path: pageRecords[0]?.illustration_path || null,
+      status: "ready",
+      updated_at: FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  } catch (error) {
+    await markGenerationFailed({ storyId, userId, brief, entitlement, error });
+  }
+}
+
 export async function POST(request: Request) {
-  let storyId = "";
-  let brief: StoryBrief | null = null;
-  let entitlement: StoryEntitlement | null = null;
-  let userId = "";
   try {
     const user = await requireApiUser();
-    userId = user.uid;
     const parsed = BriefSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message }, { status: 400 });
-    brief = parsed.data as StoryBrief;
+    const brief = parsed.data as StoryBrief;
     const db = firestore();
     const storyRef = db.collection("stories").doc();
-    storyId = storyRef.id;
-    await moderateStoryBrief(brief);
+    const storyId = storyRef.id;
+    let entitlement: StoryEntitlement | null = null;
     await db.runTransaction(async transaction => {
       const profileRef = db.collection("profiles").doc(user.uid);
       const storiesQuery = db.collection("stories").where("owner_id", "==", user.uid);
@@ -96,134 +249,16 @@ export async function POST(request: Request) {
       });
     });
 
-    const storyTextPromise = generateStoryText(brief);
-    let familyPhoto: Buffer | undefined;
-
-    if (brief.photoPath) {
-      const expectedPrefix = `family-uploads/${user.uid}/`;
-      if (!brief.photoPath.startsWith(expectedPrefix)) throw new Error("INVALID_PHOTO_PATH");
-      const [sourcePhoto] = await storageBucket().file(brief.photoPath).download();
-      familyPhoto = await sharp(sourcePhoto).rotate().resize({
-        width: 1600,
-        height: 1600,
-        fit: "inside",
-        withoutEnlargement: true,
-      }).jpeg({ quality: 90 }).toBuffer();
-      await db.collection("familyPhotoAudits").add({
-        user_id: user.uid,
-        story_id: storyId,
-        storage_path: brief.photoPath,
-        role_labels: brief.familyRoles || [],
-        consent_version: "2026-06-14-v1",
-        deletion_status: "pending",
-        uploaded_at: FieldValue.serverTimestamp(),
-      });
-    }
-
-    const characterReference = await createCharacterReference(brief, familyPhoto, "image/jpeg");
-    if (brief.photoPath) {
-      await storageBucket().file(brief.photoPath).delete({ ignoreNotFound: true });
-      const audits = await db.collection("familyPhotoAudits")
-        .where("story_id", "==", storyId).where("storage_path", "==", brief.photoPath).get();
-      await Promise.all(audits.docs.map(doc => doc.ref.update({
-        deleted_at: FieldValue.serverTimestamp(),
-        deletion_status: "deleted",
-      })));
-      familyPhoto = undefined;
-    }
-
-    const book = await storyTextPromise;
-    const characterPath = `story-media/${user.uid}/${storyId}/character-reference.png`;
-    await storageBucket().file(characterPath).save(characterReference, {
-      resumable: false,
-      contentType: "image/png",
-      metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: user.uid, storyId } },
-    });
-
-    const pageRecords = [];
-    for (let index = 0; index < book.pages.length; index += 3) {
-      const group = book.pages.slice(index, index + 3);
-      const images = await Promise.all(group.map((page, offset) =>
-        generatePageIllustration(characterReference, page.title, page.sceneDescription, index + offset + 1),
-      ));
-      for (let offset = 0; offset < group.length; offset += 1) {
-        const pageNumber = index + offset + 1;
-        const path = `story-media/${user.uid}/${storyId}/page-${pageNumber}.png`;
-        await storageBucket().file(path).save(images[offset], {
-          resumable: false,
-          contentType: "image/png",
-          metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: user.uid, storyId } },
-        });
-        pageRecords.push({
-          page_number: pageNumber,
-          title: group[offset].title,
-          body: group[offset].text,
-          illustration_path: path,
-          narration_path: null,
-          narration_duration_ms: null,
-          created_at: FieldValue.serverTimestamp(),
-        });
-      }
-    }
-
-    const batch = db.batch();
-    for (const page of pageRecords) {
-      batch.set(storyRef.collection("pages").doc(String(page.page_number).padStart(2, "0")), page);
-    }
-    batch.update(storyRef, {
-      title: book.title,
-      dedication: book.dedication,
-      cover_path: pageRecords[0]?.illustration_path || null,
-      status: "ready",
-      updated_at: FieldValue.serverTimestamp(),
-    });
-    await batch.commit();
-    return NextResponse.json({ storyId });
+    const reservedEntitlement = entitlement;
+    if (!reservedEntitlement) throw new Error("STORY_CREDIT_REQUIRED");
+    after(() => completeStoryGeneration({
+      storyId,
+      userId: user.uid,
+      brief,
+      entitlement: reservedEntitlement,
+    }));
+    return NextResponse.json({ storyId, status: "generating" }, { status: 202 });
   } catch (error) {
-    if (brief?.photoPath) {
-      await storageBucket().file(brief.photoPath).delete({ ignoreNotFound: true }).catch(() => undefined);
-      if (storyId) {
-        const audits = await firestore().collection("familyPhotoAudits")
-          .where("story_id", "==", storyId).where("storage_path", "==", brief.photoPath).get()
-          .catch(() => null);
-        await Promise.all(audits?.docs.map(doc => doc.ref.update({
-          deleted_at: FieldValue.serverTimestamp(),
-          deletion_status: "deleted_after_failure",
-        }).catch(() => undefined)) || []);
-      }
-    }
-    if (storyId) {
-      const db = firestore();
-      await db.runTransaction(async transaction => {
-        const storyRef = db.collection("stories").doc(storyId);
-        const profileRef = db.collection("profiles").doc(userId);
-        const story = await transaction.get(storyRef);
-        if (!story.exists) return;
-        const data = story.data() || {};
-        if (!data.entitlement_refunded && entitlement) {
-          transaction.set(profileRef, {
-            ...(entitlement === "free"
-              ? { freeStoriesUsed: FieldValue.increment(-1) }
-              : { storybookCredits: FieldValue.increment(1) }),
-            updatedAt: FieldValue.serverTimestamp(),
-          }, { merge: true });
-        }
-        transaction.set(storyRef, {
-          status: "failed",
-          entitlement_refunded: Boolean(entitlement),
-          error_code: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN",
-          updated_at: FieldValue.serverTimestamp(),
-        }, { merge: true });
-      }).catch(() => undefined);
-      if (userId) {
-        const [partialFiles] = await storageBucket().getFiles({
-          prefix: `story-media/${userId}/${storyId}/`,
-        }).catch(() => [[]]);
-        await Promise.all(partialFiles.map(file =>
-          file.delete({ ignoreNotFound: true }).catch(() => undefined),
-        ));
-      }
-    }
     if (error instanceof Error && error.message === "AUTH_REQUIRED") {
       return NextResponse.json({ error: "Sign in required" }, { status: 401 });
     }
