@@ -119,6 +119,7 @@ async function completeStoryGeneration({
   entitlement: StoryEntitlement;
 }) {
   let generationStage = "starting";
+  let storyCommitted = false;
   try {
     const db = firestore();
     const generationReviewFlags: string[] = [];
@@ -214,122 +215,25 @@ async function completeStoryGeneration({
       });
     }
 
-    let coverPath: string | null = null;
-    if (characterReference) {
-      try {
-        generationStage = "cover_generation";
-        const coverBytes = await generateCoverIllustration(
-          characterReference,
-          book.title,
-          book.dedication,
-          brief,
-          book.pages[0]?.sceneDescription || brief.memory,
-        );
-        coverPath = `story-media/${userId}/${storyId}/cover.png`;
-        generationStage = "cover_upload";
-        await storageBucket().file(coverPath).save(coverBytes, {
-          resumable: false,
-          contentType: "image/png",
-          metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, familyCharacterId: familyCharacterId || "" } },
-        });
-      } catch (error) {
-        coverPath = null;
-        generationReviewFlags.push("cover_retry_needed");
-        console.warn("Cover generation failed; story will remain readable", {
-          storyId,
-          userId,
-          message: error instanceof Error ? error.message : "UNKNOWN",
-        });
-      }
-    }
-
-    const pageRecords: Array<Omit<StoryPageRecord, "id" | "story_id"> & { created_at: FirebaseFirestore.FieldValue }> = [];
-    if (characterReference) {
-      for (let index = 0; index < book.pages.length; index += 3) {
-        generationStage = `page_generation_${index + 1}`;
-        const group = book.pages.slice(index, index + 3);
-        const images = await Promise.allSettled(group.map((page, offset) =>
-          generatePageIllustration(characterReference, page.title, page.sceneDescription, index + offset + 1),
-        ));
-        for (let offset = 0; offset < group.length; offset += 1) {
-          const pageNumber = index + offset + 1;
-          let illustrationPath: string | null = null;
-          const image = images[offset];
-          if (image.status === "fulfilled") {
-            const path = `story-media/${userId}/${storyId}/page-${pageNumber}.png`;
-            await storageBucket().file(path).save(image.value, {
-              resumable: false,
-              contentType: "image/png",
-              metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
-            });
-            illustrationPath = path;
-            if (!coverPath) coverPath = path;
-          } else {
-            generationReviewFlags.push(`page_${pageNumber}_illustration_retry_needed`);
-            console.warn("Page illustration failed; story page will remain readable", {
-              storyId,
-              userId,
-              pageNumber,
-              message: image.reason instanceof Error ? image.reason.message : "UNKNOWN",
-            });
-          }
-          pageRecords.push({
-            page_number: pageNumber,
-            title: group[offset].title,
-            body: group[offset].text,
-            illustration_path: illustrationPath,
-            narration_path: null,
-            narration_duration_ms: null,
-            created_at: FieldValue.serverTimestamp(),
-          });
-        }
-      }
-    } else {
+    if (!characterReference) {
       generationReviewFlags.push("all_illustrations_retry_needed");
-      for (let index = 0; index < book.pages.length; index += 1) {
-        const pageNumber = index + 1;
-        pageRecords.push({
-          page_number: pageNumber,
-          title: book.pages[index].title,
-          body: book.pages[index].text,
-          illustration_path: null,
-          narration_path: null,
-          narration_duration_ms: null,
-          created_at: FieldValue.serverTimestamp(),
-        });
-      }
     }
 
-    const narrationWarmupCount = Math.min(2, pageRecords.length);
-    generationStage = "narration_warmup";
-    const narrationWarmupResults = await Promise.allSettled(
-      pageRecords.slice(0, narrationWarmupCount).map(page =>
-        renderNarrationAsset({
-          userId,
-          storyId,
-          pageNumber: page.page_number,
-          title: page.title,
-          body: page.body,
-        }),
-      ),
-    );
-    const narrationWarmupFailures: string[] = [];
-    narrationWarmupResults.forEach((result, index) => {
-      if (result.status === "fulfilled") {
-        pageRecords[index].narration_path = result.value.narrationPath;
-        pageRecords[index].narration_duration_ms = result.value.narrationDurationMs;
-        return;
-      }
-      narrationWarmupFailures.push(`page_${pageRecords[index].page_number}`);
-      console.warn("Narration warmup failed; story will remain readable", {
-        storyId,
-        userId,
-        pageNumber: pageRecords[index].page_number,
-        message: result.reason instanceof Error ? result.reason.message : "UNKNOWN",
-      });
-    });
+    const pageRecords: Array<Omit<StoryPageRecord, "id" | "story_id"> & { created_at: FirebaseFirestore.FieldValue }> =
+      book.pages.map((page, index) => ({
+        page_number: index + 1,
+        title: page.title,
+        body: page.text,
+        illustration_path: null,
+        narration_path: null,
+        narration_duration_ms: null,
+        created_at: FieldValue.serverTimestamp(),
+      }));
 
-    generationStage = "firestore_commit";
+    let coverPath: string | null = null;
+    const narrationWarmupFailures: string[] = [];
+
+    generationStage = "firestore_text_commit";
     const batch = db.batch();
     const storyRef = db.collection("stories").doc(storyId);
     const snapshotRef = db.collection("storySnapshots").doc();
@@ -339,7 +243,6 @@ async function completeStoryGeneration({
       ...generationReviewFlags,
       ...(!familyCharacterId ? ["missing_family_character_reference"] : []),
       ...(brief.memory.toLowerCase().includes("handbag") ? ["adult_accessory_scene_requires_review"] : []),
-      ...(narrationWarmupFailures.length ? ["narration_warmup_retry_needed"] : []),
     ];
     for (const page of pageRecords) {
       batch.set(storyRef.collection("pages").doc(String(page.page_number).padStart(2, "0")), page);
@@ -394,10 +297,158 @@ async function completeStoryGeneration({
       character_reference_path: characterPath,
       snapshot_id: snapshotRef.id,
       generation_review_id: reviewRef.id,
+      media_generation_status: characterReference ? "generating" : "needs_retry",
       status: "ready",
       updated_at: FieldValue.serverTimestamp(),
     });
     await batch.commit();
+    storyCommitted = true;
+
+    if (characterReference) {
+      try {
+        generationStage = "cover_generation";
+        const coverBytes = await generateCoverIllustration(
+          characterReference,
+          book.title,
+          book.dedication,
+          brief,
+          book.pages[0]?.sceneDescription || brief.memory,
+        );
+        coverPath = `story-media/${userId}/${storyId}/cover.png`;
+        generationStage = "cover_upload";
+        await storageBucket().file(coverPath).save(coverBytes, {
+          resumable: false,
+          contentType: "image/png",
+          metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, familyCharacterId: familyCharacterId || "" } },
+        });
+        await Promise.all([
+          storyRef.set({
+            cover_path: coverPath,
+            media_generation_status: "generating",
+            updated_at: FieldValue.serverTimestamp(),
+          }, { merge: true }),
+          coverRef.set({
+            cover_path: coverPath,
+            quality_status: "ready_for_parent_review",
+            updated_at: FieldValue.serverTimestamp(),
+          }, { merge: true }),
+          snapshotRef.set({
+            cover_path: coverPath,
+          }, { merge: true }),
+        ]);
+      } catch (error) {
+        coverPath = null;
+        generationReviewFlags.push("cover_retry_needed");
+        console.warn("Cover generation failed; story will remain readable", {
+          storyId,
+          userId,
+          message: error instanceof Error ? error.message : "UNKNOWN",
+        });
+      }
+
+      for (let index = 0; index < book.pages.length; index += 3) {
+        generationStage = `page_generation_${index + 1}`;
+        const group = book.pages.slice(index, index + 3);
+        const images = await Promise.allSettled(group.map((page, offset) =>
+          generatePageIllustration(characterReference, page.title, page.sceneDescription, index + offset + 1),
+        ));
+        for (let offset = 0; offset < group.length; offset += 1) {
+          const pageNumber = index + offset + 1;
+          const image = images[offset];
+          if (image.status === "fulfilled") {
+            const path = `story-media/${userId}/${storyId}/page-${pageNumber}.png`;
+            await storageBucket().file(path).save(image.value, {
+              resumable: false,
+              contentType: "image/png",
+              metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
+            });
+            await storyRef.collection("pages").doc(String(pageNumber).padStart(2, "0")).set({
+              illustration_path: path,
+            }, { merge: true });
+            if (!coverPath) {
+              coverPath = path;
+              await Promise.all([
+                storyRef.set({
+                  cover_path: coverPath,
+                  updated_at: FieldValue.serverTimestamp(),
+                }, { merge: true }),
+                coverRef.set({
+                  cover_path: coverPath,
+                  quality_status: "page_art_fallback",
+                  updated_at: FieldValue.serverTimestamp(),
+                }, { merge: true }),
+                snapshotRef.set({
+                  cover_path: coverPath,
+                }, { merge: true }),
+              ]);
+            }
+          } else {
+            generationReviewFlags.push(`page_${pageNumber}_illustration_retry_needed`);
+            console.warn("Page illustration failed; story page will remain readable", {
+              storyId,
+              userId,
+              pageNumber,
+              message: image.reason instanceof Error ? image.reason.message : "UNKNOWN",
+            });
+          }
+        }
+      }
+    }
+
+    const narrationWarmupCount = Math.min(2, pageRecords.length);
+    generationStage = "narration_warmup";
+    const narrationWarmupResults = await Promise.allSettled(
+      pageRecords.slice(0, narrationWarmupCount).map(page =>
+        renderNarrationAsset({
+          userId,
+          storyId,
+          pageNumber: page.page_number,
+          title: page.title,
+          body: page.body,
+        }),
+      ),
+    );
+    for (let index = 0; index < narrationWarmupResults.length; index += 1) {
+      const result = narrationWarmupResults[index];
+      if (result.status === "fulfilled") {
+        await storyRef.collection("pages").doc(String(pageRecords[index].page_number).padStart(2, "0")).set({
+          narration_path: result.value.narrationPath,
+          narration_duration_ms: result.value.narrationDurationMs,
+        }, { merge: true });
+      } else {
+        narrationWarmupFailures.push(`page_${pageRecords[index].page_number}`);
+        console.warn("Narration warmup failed; story will remain readable", {
+          storyId,
+          userId,
+          pageNumber: pageRecords[index].page_number,
+          message: result.reason instanceof Error ? result.reason.message : "UNKNOWN",
+        });
+      }
+    }
+
+    const finalReviewFlags = [
+      ...generationReviewFlags,
+      ...(!familyCharacterId ? ["missing_family_character_reference"] : []),
+      ...(brief.memory.toLowerCase().includes("handbag") ? ["adult_accessory_scene_requires_review"] : []),
+      ...(narrationWarmupFailures.length ? ["narration_warmup_retry_needed"] : []),
+    ];
+    await Promise.all([
+      reviewRef.set({
+        status: finalReviewFlags.length ? "needs_manual_review" : "passed",
+        flags: finalReviewFlags,
+        "checklist.adultTraitsOnChild": finalReviewFlags.includes("adult_accessory_scene_requires_review") ? "review" : "passed",
+        "checklist.missingCoreCharacter": familyCharacterId ? "passed" : "review",
+        notes: finalReviewFlags.length
+          ? "Automatic checks found items for parent or admin review before physical printing."
+          : "Prompt-level consistency checks passed for digital delivery.",
+        narration_warmup_failures: narrationWarmupFailures,
+        updated_at: FieldValue.serverTimestamp(),
+      }, { merge: true }),
+      storyRef.set({
+        media_generation_status: finalReviewFlags.some(flag => flag.includes("retry_needed")) ? "needs_retry" : "ready",
+        updated_at: FieldValue.serverTimestamp(),
+      }, { merge: true }),
+    ]);
   } catch (error) {
     console.error("Story generation failed", {
       storyId,
@@ -405,6 +456,15 @@ async function completeStoryGeneration({
       stage: generationStage,
       message: error instanceof Error ? error.message : "UNKNOWN",
     });
+    if (storyCommitted) {
+      await firestore().collection("stories").doc(storyId).set({
+        media_generation_status: "needs_retry",
+        error_code: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN",
+        error_stage: generationStage,
+        updated_at: FieldValue.serverTimestamp(),
+      }, { merge: true }).catch(() => undefined);
+      return;
+    }
     await markGenerationFailed({ storyId, userId, brief, entitlement, error, stage: generationStage });
   }
 }

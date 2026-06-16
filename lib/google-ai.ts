@@ -123,24 +123,31 @@ const safetySettings = [
 ].map(category => ({ category, threshold: "BLOCK_MEDIUM_AND_ABOVE" }));
 
 export async function moderateStoryBrief(brief: StoryBrief) {
-  const result = await generateContent(serverEnv().GEMINI_TEXT_MODEL, {
-    systemInstruction: {
-      parts: [{ text: "You are a child-safety classifier. Reject sexual, violent, hateful, exploitative, self-harm, dangerous imitation, or personally identifying content inappropriate for a children's bedtime story." }],
-    },
-    contents: [{ role: "user", parts: [{ text: JSON.stringify(brief) }] }],
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseJsonSchema: {
-        type: "object",
-        properties: { safe: { type: "boolean" } },
-        required: ["safe"],
+  try {
+    const result = await generateContent(serverEnv().GEMINI_TEXT_MODEL, {
+      systemInstruction: {
+        parts: [{ text: "You are a child-safety classifier. Reject sexual, violent, hateful, exploitative, self-harm, dangerous imitation, or personally identifying content inappropriate for a children's bedtime story." }],
       },
-      temperature: 0,
-    },
-    safetySettings,
-  });
-  const parsed = JSON.parse(textFrom(result)) as { safe?: boolean };
-  if (!parsed.safe) throw new Error("STORY_INPUT_BLOCKED");
+      contents: [{ role: "user", parts: [{ text: JSON.stringify(brief) }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseJsonSchema: {
+          type: "object",
+          properties: { safe: { type: "boolean" } },
+          required: ["safe"],
+        },
+        temperature: 0,
+      },
+      safetySettings,
+    });
+    const parsed = JSON.parse(textFrom(result)) as { safe?: boolean };
+    if (!parsed.safe) throw new Error("STORY_INPUT_BLOCKED");
+  } catch (error) {
+    if (error instanceof Error && error.message === "STORY_INPUT_BLOCKED") throw error;
+    console.warn("Story brief moderation unavailable; continuing to guarded story generation", {
+      message: error instanceof Error ? error.message : "UNKNOWN",
+    });
+  }
 }
 
 export async function generateStoryText(brief: StoryBrief) {
