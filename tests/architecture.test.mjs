@@ -41,6 +41,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(generation, /generationReviews/);
   assert.match(generation, /Promise\.allSettled/);
   assert.match(generation, /narration_warmup_retry_needed/);
+  assert.match(generation, /character_reference_retry_needed/);
+  assert.match(generation, /all_illustrations_retry_needed/);
   assert.doesNotMatch(generation, /cover_path: pageRecords\[0\]\?\.illustration_path/);
   assert.match(googleAi, /gemini-3\.1-flash-image-preview|GEMINI_IMAGE_MODEL/);
   assert.match(googleAi, /Warm, whimsical, premium custom children's-book illustration/);

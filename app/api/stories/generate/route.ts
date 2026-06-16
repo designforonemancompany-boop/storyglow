@@ -121,6 +121,7 @@ async function completeStoryGeneration({
   let generationStage = "starting";
   try {
     const db = firestore();
+    const generationReviewFlags: string[] = [];
     generationStage = "moderation";
     await moderateStoryBrief(brief);
 
@@ -159,10 +160,21 @@ async function completeStoryGeneration({
       }
     }
 
+    let characterReference: Buffer | null = null;
     generationStage = reusedCharacterPath ? "reuse_character_download" : "character_reference_generation";
-    const characterReference = reusedCharacterPath
-      ? (await storageBucket().file(reusedCharacterPath).download())[0]
-      : await createCharacterReference(brief, familyPhoto, "image/jpeg");
+    try {
+      characterReference = reusedCharacterPath
+        ? (await storageBucket().file(reusedCharacterPath).download())[0]
+        : await createCharacterReference(brief, familyPhoto, "image/jpeg");
+    } catch (error) {
+      generationReviewFlags.push("character_reference_retry_needed");
+      console.warn("Character reference generation failed; story will remain readable", {
+        storyId,
+        userId,
+        stage: generationStage,
+        message: error instanceof Error ? error.message : "UNKNOWN",
+      });
+    }
     if (brief.photoPath) {
       generationStage = "raw_photo_deletion";
       await storageBucket().file(brief.photoPath).delete({ ignoreNotFound: true });
@@ -183,7 +195,7 @@ async function completeStoryGeneration({
     if (familyCharacterId && characterPath) {
       generationStage = "mark_character_used";
       await markFamilyCharacterUsed(familyCharacterId);
-    } else {
+    } else if (characterReference) {
       generationStage = "save_character_reference";
       const characterRef = db.collection("familyCharacters").doc();
       characterPath = `character-media/${userId}/${characterRef.id}/reference.png`;
@@ -202,42 +214,85 @@ async function completeStoryGeneration({
       });
     }
 
-    generationStage = "cover_generation";
-    const coverBytes = await generateCoverIllustration(
-      characterReference,
-      book.title,
-      book.dedication,
-      brief,
-      book.pages[0]?.sceneDescription || brief.memory,
-    );
-    const coverPath = `story-media/${userId}/${storyId}/cover.png`;
-    generationStage = "cover_upload";
-    await storageBucket().file(coverPath).save(coverBytes, {
-      resumable: false,
-      contentType: "image/png",
-      metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, familyCharacterId: familyCharacterId || "" } },
-    });
-
-    const pageRecords: Array<Omit<StoryPageRecord, "id" | "story_id"> & { created_at: FirebaseFirestore.FieldValue }> = [];
-    for (let index = 0; index < book.pages.length; index += 3) {
-      generationStage = `page_generation_${index + 1}`;
-      const group = book.pages.slice(index, index + 3);
-      const images = await Promise.all(group.map((page, offset) =>
-        generatePageIllustration(characterReference, page.title, page.sceneDescription, index + offset + 1),
-      ));
-      for (let offset = 0; offset < group.length; offset += 1) {
-        const pageNumber = index + offset + 1;
-        const path = `story-media/${userId}/${storyId}/page-${pageNumber}.png`;
-        await storageBucket().file(path).save(images[offset], {
+    let coverPath: string | null = null;
+    if (characterReference) {
+      try {
+        generationStage = "cover_generation";
+        const coverBytes = await generateCoverIllustration(
+          characterReference,
+          book.title,
+          book.dedication,
+          brief,
+          book.pages[0]?.sceneDescription || brief.memory,
+        );
+        coverPath = `story-media/${userId}/${storyId}/cover.png`;
+        generationStage = "cover_upload";
+        await storageBucket().file(coverPath).save(coverBytes, {
           resumable: false,
           contentType: "image/png",
-          metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
+          metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, familyCharacterId: familyCharacterId || "" } },
         });
+      } catch (error) {
+        coverPath = null;
+        generationReviewFlags.push("cover_retry_needed");
+        console.warn("Cover generation failed; story will remain readable", {
+          storyId,
+          userId,
+          message: error instanceof Error ? error.message : "UNKNOWN",
+        });
+      }
+    }
+
+    const pageRecords: Array<Omit<StoryPageRecord, "id" | "story_id"> & { created_at: FirebaseFirestore.FieldValue }> = [];
+    if (characterReference) {
+      for (let index = 0; index < book.pages.length; index += 3) {
+        generationStage = `page_generation_${index + 1}`;
+        const group = book.pages.slice(index, index + 3);
+        const images = await Promise.allSettled(group.map((page, offset) =>
+          generatePageIllustration(characterReference, page.title, page.sceneDescription, index + offset + 1),
+        ));
+        for (let offset = 0; offset < group.length; offset += 1) {
+          const pageNumber = index + offset + 1;
+          let illustrationPath: string | null = null;
+          const image = images[offset];
+          if (image.status === "fulfilled") {
+            const path = `story-media/${userId}/${storyId}/page-${pageNumber}.png`;
+            await storageBucket().file(path).save(image.value, {
+              resumable: false,
+              contentType: "image/png",
+              metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
+            });
+            illustrationPath = path;
+            if (!coverPath) coverPath = path;
+          } else {
+            generationReviewFlags.push(`page_${pageNumber}_illustration_retry_needed`);
+            console.warn("Page illustration failed; story page will remain readable", {
+              storyId,
+              userId,
+              pageNumber,
+              message: image.reason instanceof Error ? image.reason.message : "UNKNOWN",
+            });
+          }
+          pageRecords.push({
+            page_number: pageNumber,
+            title: group[offset].title,
+            body: group[offset].text,
+            illustration_path: illustrationPath,
+            narration_path: null,
+            narration_duration_ms: null,
+            created_at: FieldValue.serverTimestamp(),
+          });
+        }
+      }
+    } else {
+      generationReviewFlags.push("all_illustrations_retry_needed");
+      for (let index = 0; index < book.pages.length; index += 1) {
+        const pageNumber = index + 1;
         pageRecords.push({
           page_number: pageNumber,
-          title: group[offset].title,
-          body: group[offset].text,
-          illustration_path: path,
+          title: book.pages[index].title,
+          body: book.pages[index].text,
+          illustration_path: null,
           narration_path: null,
           narration_duration_ms: null,
           created_at: FieldValue.serverTimestamp(),
@@ -281,6 +336,7 @@ async function completeStoryGeneration({
     const coverRef = db.collection("storyCovers").doc(storyId);
     const reviewRef = db.collection("generationReviews").doc(storyId);
     const reviewFlags = [
+      ...generationReviewFlags,
       ...(!familyCharacterId ? ["missing_family_character_reference"] : []),
       ...(brief.memory.toLowerCase().includes("handbag") ? ["adult_accessory_scene_requires_review"] : []),
       ...(narrationWarmupFailures.length ? ["narration_warmup_retry_needed"] : []),
