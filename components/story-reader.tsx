@@ -25,12 +25,11 @@ function buildInitialNarrationCache(pages: ReaderPage[]) {
   }, {});
 }
 
-function PendingIllustration({ kind }: { kind: "cover" | "page" }) {
+function FallbackIllustration({ kind }: { kind: "cover" | "page" }) {
   return (
-    <div className="pending-illustration" role="img" aria-label={`${kind} illustration is still being prepared`}>
-      <span className="book-star">*</span>
-      <strong>{kind === "cover" ? "Cover illustration is being prepared" : "Illustration is being prepared"}</strong>
-      <small>Your story text is ready. Personalized art will appear here when generation completes.</small>
+    <div className="fallback-illustration" role="img" aria-label={`Temporary ${kind} illustration fallback`}>
+      <Image src="/assets/birthday-story-scenes.png" fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
+      <span>Temporary illustration fallback</span>
     </div>
   );
 }
@@ -319,7 +318,7 @@ export function StoryReader({
             ) : sample ? (
               <Image src="/assets/birthday-story-scenes.png" fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
             ) : (
-              <PendingIllustration kind="cover" />
+              <FallbackIllustration kind="cover" />
             )}
           </div>
           <article className="reader-copy cover-copy">
@@ -337,7 +336,7 @@ export function StoryReader({
             ) : sample ? (
               <Image src="/assets/birthday-story-scenes.png" fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
             ) : (
-              <PendingIllustration kind="page" />
+              <FallbackIllustration kind="page" />
             )}
           </div>
           <article className="reader-copy">

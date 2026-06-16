@@ -48,10 +48,9 @@ export default async function LibraryPage() {
                 {story.coverUrl ? (
                   <Image src={story.coverUrl} width={720} height={450} alt="" unoptimized />
                 ) : (
-                  <div className="library-cover-placeholder">
-                    <span>StoryGlow</span>
-                    <strong>{story.title}</strong>
-                    <small>Personalized cover preparing</small>
+                  <div className="library-cover-fallback">
+                    <Image src="/assets/birthday-story-scenes.png" width={720} height={450} alt="" unoptimized />
+                    <span>Temporary illustration fallback</span>
                   </div>
                 )}
                 <div className="library-card-body">

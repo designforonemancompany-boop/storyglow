@@ -64,11 +64,11 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(reader, /Sleep timer/);
   assert.match(reader, /Story cover/);
   assert.match(reader, /Open the book/);
-  assert.match(reader, /PendingIllustration/);
+  assert.match(reader, /FallbackIllustration/);
   assert.match(reader, /buildInitialNarrationCache/);
   assert.match(reader, /rememberNarration/);
   assert.match(reader, /sample \?/);
-  assert.doesNotMatch(reader, /page\.illustration_url \|\| "\/assets\/birthday-story-scenes\.png"/);
+  assert.match(reader, /Temporary illustration fallback/);
   assert.match(reader, /\/api\/progress/);
   assert.match(feedback, /rewardCredits = 5/);
   assert.match(feedback, /rewardCredits = 1/);
@@ -93,8 +93,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(firestoreRules, /match \/generationReviews/);
   assert.match(settings, /CharacterRefinementForm/);
   assert.match(library, /Story snapshot/);
-  assert.match(library, /library-cover-placeholder/);
-  assert.doesNotMatch(library, /coverUrl \|\| "\/assets\/birthday-story-scenes\.png"/);
+  assert.match(library, /library-cover-fallback/);
+  assert.match(library, /Temporary illustration fallback/);
   assert.match(firebaseConfig, /publicEnv/);
   assert.match(versionRoute, /K_REVISION/);
   assert.doesNotMatch(firebaseConfig, /GOOGLE_GENERATIVE_AI_API_KEY|STRIPE_SECRET_KEY/);
