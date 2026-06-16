@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -19,6 +19,9 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("app/api/stripe/webhook/route.ts"),
     read("app/api/firebase-config/route.ts"),
     read("lib/feedback.ts"),
+    read("lib/family-characters.ts"),
+    read("app/settings/page.tsx"),
+    read("app/library/page.tsx"),
   ]);
 
   assert.match(pkg, /"firebase"/);
@@ -30,12 +33,24 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(storageRules, /allow read, write: if false/);
   assert.match(generation, /delete\(\{ ignoreNotFound: true \}\)/);
   assert.match(generation, /familyPhotoAudits/);
+  assert.match(generation, /findReusableFamilyCharacter/);
+  assert.match(generation, /character-media/);
+  assert.match(generation, /generateCoverIllustration/);
+  assert.match(generation, /storyCovers/);
+  assert.match(generation, /storySnapshots/);
+  assert.match(generation, /generationReviews/);
+  assert.doesNotMatch(generation, /cover_path: pageRecords\[0\]\?\.illustration_path/);
   assert.match(googleAi, /gemini-3\.1-flash-image-preview|GEMINI_IMAGE_MODEL/);
   assert.match(googleAi, /Warm, whimsical, premium custom children's-book illustration/);
   assert.match(googleAi, /character sheet as the strict identity reference/);
+  assert.match(googleAi, /dedicated premium personalized storybook cover/);
+  assert.match(familyCharacters, /raw photo/);
+  assert.doesNotMatch(familyCharacters, /orderBy\("last_used_at"/);
   assert.match(env, /GOOGLE_GENERATIVE_AI_API_KEY/);
   assert.doesNotMatch(env, /OPENAI|SUPABASE|GEMINI_API_KEY=/);
   assert.match(reader, /Sleep timer/);
+  assert.match(reader, /Story cover/);
+  assert.match(reader, /Open the book/);
   assert.match(reader, /\/api\/progress/);
   assert.match(feedback, /rewardCredits = 5/);
   assert.match(feedback, /rewardCredits = 1/);
@@ -54,6 +69,12 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(stripeWebhook, /printOrders/);
   assert.match(firestoreRules, /match \/printOrders/);
   assert.match(firestoreRules, /match \/checkoutSessions/);
+  assert.match(firestoreRules, /match \/familyCharacters/);
+  assert.match(firestoreRules, /match \/storyCovers/);
+  assert.match(firestoreRules, /match \/storySnapshots/);
+  assert.match(firestoreRules, /match \/generationReviews/);
+  assert.match(settings, /CharacterRefinementForm/);
+  assert.match(library, /Story snapshot/);
   assert.match(firebaseConfig, /publicEnv/);
   assert.doesNotMatch(firebaseConfig, /GOOGLE_GENERATIVE_AI_API_KEY|STRIPE_SECRET_KEY/);
 });

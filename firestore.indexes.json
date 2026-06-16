@@ -15,6 +15,16 @@
         { "fieldPath": "story_id", "order": "ASCENDING" },
         { "fieldPath": "owner_id", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "familyCharacters",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "owner_id", "order": "ASCENDING" },
+        { "fieldPath": "child_key", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "last_used_at", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

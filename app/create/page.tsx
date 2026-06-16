@@ -1,9 +1,11 @@
 import { SiteHeader } from "@/components/site-header";
 import { CreateStoryForm } from "@/components/create-story-form";
 import { getOptionalUser } from "@/lib/auth";
+import { ownedFamilyCharacters } from "@/lib/firestore-data";
 
 export default async function CreatePage() {
   const user = await getOptionalUser();
+  const reusableCharacters = user ? await ownedFamilyCharacters(user.uid) : [];
   return (
     <>
       <SiteHeader />
@@ -11,9 +13,9 @@ export default async function CreatePage() {
         <aside className="creation-aside">
           <p className="section-label">Your family&apos;s book</p>
           <h1>What memory should their story hold?</h1>
-          <p>StoryGlow uses Google AI Studio to write an age-matched story and create cohesive, non-photorealistic watercolor illustrations.</p>
+          <p>StoryGlow writes an age-matched story, creates a dedicated cover, and keeps family characters visually consistent across future books.</p>
         </aside>
-        <CreateStoryForm isSignedIn={Boolean(user)} />
+        <CreateStoryForm isSignedIn={Boolean(user)} reusableCharacterCount={reusableCharacters.length} />
       </main>
     </>
   );

@@ -59,6 +59,26 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /familyCharacters/{characterId} {
+      allow read: if signedIn() && resource.data.owner_id == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /storyCovers/{coverId} {
+      allow read: if signedIn() && resource.data.owner_id == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /storySnapshots/{snapshotId} {
+      allow read: if signedIn() && resource.data.owner_id == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /generationReviews/{reviewId} {
+      allow read: if signedIn() && resource.data.owner_id == request.auth.uid;
+      allow write: if false;
+    }
+
     match /printOrders/{orderId} {
       allow read: if signedIn() && resource.data.owner_id == request.auth.uid;
       allow write: if false;

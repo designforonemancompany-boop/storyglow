@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 export type ReaderPage = {
@@ -12,7 +13,21 @@ export type ReaderPage = {
   narration_url: string | null;
 };
 
-export function StoryReader({ storyId, title, pages, sample = false, initialPage = 1, initialPosition = 0, initialRate = 1 }: {
+type ReaderCover = {
+  image_url: string | null;
+  dedication?: string;
+};
+
+export function StoryReader({
+  storyId,
+  title,
+  pages,
+  sample = false,
+  initialPage = 1,
+  initialPosition = 0,
+  initialRate = 1,
+  cover,
+}: {
   storyId: string;
   title: string;
   pages: ReaderPage[];
@@ -20,7 +35,9 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
   initialPage?: number;
   initialPosition?: number;
   initialRate?: number;
+  cover?: ReaderCover;
 }) {
+  const [showCover, setShowCover] = useState(Boolean(cover?.image_url && initialPage <= 1 && initialPosition === 0));
   const [pageIndex, setPageIndex] = useState(Math.max(0, Math.min(pages.length - 1, initialPage - 1)));
   const [rate, setRate] = useState(initialRate);
   const [audioUrl, setAudioUrl] = useState(pages[Math.max(0, Math.min(pages.length - 1, initialPage - 1))]?.narration_url || null);
@@ -37,7 +54,7 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
   const page = pages[pageIndex];
 
   async function saveProgress(audioPositionMs: number) {
-    if (sample) return;
+    if (sample || showCover) return;
     await fetch("/api/progress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -59,14 +76,14 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    if (!sample) {
+    if (!sample && !showCover) {
       void saveProgress(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page.page_number, page.narration_url, rate, sample, storyId]);
+  }, [page.page_number, page.narration_url, rate, sample, storyId, showCover]);
 
   useEffect(() => {
-    if (sample) return;
+    if (sample || showCover) return;
     let cancelled = false;
 
     async function prefetchNarration(pageNumber: number) {
@@ -103,7 +120,7 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
     return () => {
       cancelled = true;
     };
-  }, [audioUrl, page.narration_url, page.page_number, pageIndex, pages, sample, storyId]);
+  }, [audioUrl, page.narration_url, page.page_number, pageIndex, pages, sample, showCover, storyId]);
 
   useEffect(() => {
     if (!sleepTimerEndsAt) {
@@ -163,6 +180,7 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
   }
 
   async function togglePlayback() {
+    if (showCover) setShowCover(false);
     if (playing) {
       continuePlaybackRef.current = false;
       audioRef.current?.pause();
@@ -200,14 +218,14 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
   }
 
   useEffect(() => {
-    if (!continuePlaybackRef.current || sample) return;
+    if (!continuePlaybackRef.current || sample || showCover) return;
     if (pageIndex === pages.length - 1) {
       continuePlaybackRef.current = false;
       return;
     }
     void togglePlayback();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageIndex]);
+  }, [pageIndex, showCover]);
 
   async function persistPosition() {
     if (sample || !audioRef.current) return;
@@ -253,29 +271,48 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
           </div>
         )}
       </div>
-      <div className="reader-canvas">
-        <div className="reader-image">
-          <Image src={page.illustration_url || "/assets/birthday-story-scenes.png"} fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized={Boolean(page.illustration_url)} />
+      {showCover ? (
+        <div className="reader-canvas cover-canvas">
+          <div className="reader-image">
+            <Image src={cover?.image_url || "/assets/birthday-story-scenes.png"} fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized={Boolean(cover?.image_url)} />
+          </div>
+          <article className="reader-copy cover-copy">
+            <p className="section-label">Story cover</p>
+            <h2>{title}</h2>
+            {cover?.dedication ? <p>{cover.dedication}</p> : null}
+            <button className="button" type="button" onClick={() => setShowCover(false)}>Open the book</button>
+          </article>
         </div>
-        <article className="reader-copy">
-          <p className="section-label">Page {page.page_number} of {pages.length}</p>
-          <h2>{page.title}</h2>
-          <p>{page.body}</p>
-        </article>
-      </div>
+      ) : (
+        <div className="reader-canvas">
+          <div className="reader-image">
+            <Image src={page.illustration_url || "/assets/birthday-story-scenes.png"} fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized={Boolean(page.illustration_url)} />
+          </div>
+          <article className="reader-copy">
+            <p className="section-label">Page {page.page_number} of {pages.length}</p>
+            <h2>{page.title}</h2>
+            <p>{page.body}</p>
+          </article>
+        </div>
+      )}
       <div className="reader-bottom">
         <button
           className="round-button"
-          aria-label="Previous page"
+          aria-label={showCover ? "Cover displayed" : "Previous page"}
           onClick={() => {
             continuePlaybackRef.current = false;
+            if (pageIndex === 0 && cover?.image_url) {
+              setShowCover(true);
+              return;
+            }
             setPageIndex(index => Math.max(0, index - 1));
           }}
-          disabled={pageIndex === 0}
+          disabled={showCover || pageIndex === 0 && !cover?.image_url}
         >
-          ←
+          <ChevronLeft size={20} />
         </button>
         <button className="play-button" onClick={() => void togglePlayback()} disabled={busy}>
+          {playing ? <Pause size={18} /> : <Play size={18} />}
           {playing ? "Pause bedtime audio" : busy ? "Preparing audio..." : audioPrepared ? "Audio ready - tap to play" : "Play bedtime audio"}
         </button>
         {audioError ? <span role="alert">{audioError}</span> : null}
@@ -311,11 +348,15 @@ export function StoryReader({ storyId, title, pages, sample = false, initialPage
           aria-label="Next page"
           onClick={() => {
             continuePlaybackRef.current = false;
+            if (showCover) {
+              setShowCover(false);
+              return;
+            }
             setPageIndex(index => Math.min(pages.length - 1, index + 1));
           }}
-          disabled={pageIndex === pages.length - 1}
+          disabled={!showCover && pageIndex === pages.length - 1}
         >
-          →
+          <ChevronRight size={20} />
         </button>
       </div>
       <audio

@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-export function StoryGenerationStatus({ status, title }: { status: "generating" | "failed"; title: string }) {
+export function StoryGenerationStatus({
+  status,
+  title,
+  errorStage,
+}: {
+  status: "generating" | "failed";
+  title: string;
+  errorStage?: string | null;
+}) {
   const router = useRouter();
 
   useEffect(() => {
@@ -22,6 +30,9 @@ export function StoryGenerationStatus({ status, title }: { status: "generating" 
           ? `${title} is safely saved in your library. You can leave this page open; it will refresh automatically when the story is ready.`
           : "The credit was returned to your account. Please try creating the story again from your library."}
       </p>
+      {status === "failed" && errorStage ? (
+        <p className="privacy-note">Support reference: generation stopped during {errorStage.replaceAll("_", " ")}.</p>
+      ) : null}
       {status === "generating" ? (
         <div className="generation-steps" aria-label="Story generation progress">
           <span>Writing the story</span>

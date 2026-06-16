@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { FamilyRole } from "@/lib/types";
 
-export function CreateStoryForm({ isSignedIn }: { isSignedIn: boolean }) {
+export function CreateStoryForm({
+  isSignedIn,
+  reusableCharacterCount = 0,
+}: {
+  isSignedIn: boolean;
+  reusableCharacterCount?: number;
+}) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [photo, setPhoto] = useState<File | null>(null);
@@ -82,14 +88,20 @@ export function CreateStoryForm({ isSignedIn }: { isSignedIn: boolean }) {
   return (
     <form ref={formRef} className="story-form" onSubmit={submit}>
       <div className="form-progress"><span>Story details</span><strong>Private by default</strong></div>
+      {reusableCharacterCount ? (
+        <div className="universe-note">
+          <strong>{reusableCharacterCount} reusable family character{reusableCharacterCount === 1 ? "" : "s"} ready</strong>
+          <span>Future books can reuse the same illustrated look unless you add a new optional photo.</span>
+        </div>
+      ) : null}
       <div className="form-grid">
         <label>Child&apos;s name<input name="childName" required maxLength={40} placeholder="e.g. Maya" /></label>
         <label>Age<select name="age" required defaultValue=""><option value="" disabled>Choose age</option>{[2,3,4,5,6,7,8].map(age => <option key={age}>{age}</option>)}</select></label>
         <fieldset><legend>Who is this story about?</legend><div className="choice-row"><label><input type="radio" name="gender" value="girl" defaultChecked />Girl</label><label><input type="radio" name="gender" value="boy" />Boy</label><label><input type="radio" name="gender" value="self" />Let them choose</label></div></fieldset>
         <label>Parent or grown-up names<input name="grownUps" maxLength={160} placeholder="e.g. Mum and Dad" /></label>
-        <label>Character traits<input name="characterTraits" required maxLength={500} placeholder="Curly hair, joyful, loves yellow shoes…" /></label>
-        <label className="wide">What happened?<textarea name="event" required maxLength={800} placeholder="A birthday, a first day, a family trip…" /></label>
-        <label className="wide">A detail you never want to forget<textarea name="memory" required maxLength={800} placeholder="Their favorite bag, a funny phrase, the way they dance…" /></label>
+        <label>Character traits<input name="characterTraits" required maxLength={500} placeholder="Curly hair, joyful, loves yellow shoes..." /></label>
+        <label className="wide">What happened?<textarea name="event" required maxLength={800} placeholder="A birthday, a first day, a family trip..." /></label>
+        <label className="wide">A detail you never want to forget<textarea name="memory" required maxLength={800} placeholder="Their favorite bag, a funny phrase, the way they dance..." /></label>
       </div>
       <section className="upload-zone">
         <strong>Optional family likeness</strong>
@@ -120,7 +132,7 @@ export function CreateStoryForm({ isSignedIn }: { isSignedIn: boolean }) {
         </section>
       ) : null}
       <p className="form-message" role="alert">{message}</p>
-      <div className="form-footer"><span>Generation creates 10–12 illustrated pages and may take several minutes.</span><button className="button" disabled={busy}>{busy ? "Creating your book..." : isSignedIn ? "Create my story" : "Sign in and create"}</button></div>
+      <div className="form-footer"><span>Generation creates a cover plus 10-12 illustrated pages and may take several minutes.</span><button className="button" disabled={busy}>{busy ? "Creating your book..." : isSignedIn ? "Create my story" : "Sign in and create"}</button></div>
     </form>
   );
 }

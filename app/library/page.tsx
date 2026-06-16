@@ -50,6 +50,11 @@ export default async function LibraryPage() {
                   <span className="status-pill">{story.status}</span>
                   <h2>{story.title}</h2>
                   <p>{story.dedication || "A private StoryGlow book."}</p>
+                  <div className="snapshot-meta">
+                    <span>Story snapshot</span>
+                    <strong>{story.brief?.event || "A family memory"}</strong>
+                    {story.family_character_id ? <small>Uses reusable family characters</small> : <small>Character memory will be created when ready</small>}
+                  </div>
                   {story.status === "ready" || story.status === "archived" ? <Link className="button" href={`/stories/${story.id}`}>Read or listen</Link> : null}
                   {story.status === "generating" ? <Link className="button" href={`/stories/${story.id}`}>View progress</Link> : null}
                   {story.status === "failed" ? <Link className="button" href={`/stories/${story.id}`}>See retry details</Link> : null}

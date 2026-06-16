@@ -32,6 +32,12 @@ export type StoryRecord = {
   status: "generating" | "ready" | "failed" | "archived";
   brief: StoryBrief;
   cover_path: string | null;
+  cover_prompt_version?: string | null;
+  family_character_id?: string | null;
+  character_reference_path?: string | null;
+  snapshot_id?: string | null;
+  error_code?: string | null;
+  error_stage?: string | null;
   created_at: string;
   updated_at: string;
   story_pages?: StoryPageRecord[];
@@ -58,4 +64,56 @@ export type PrintOrderRecord = {
   amount_total: number | null;
   currency: string | null;
   updated_at: unknown;
+};
+
+export type FamilyCharacterRecord = {
+  id: string;
+  owner_id: string;
+  child_name: string;
+  status: "active" | "archived" | "draft_failed";
+  source: "generated_bible" | "role_labeled_photo" | "reused_reference";
+  reference_path: string;
+  trait_bible: {
+    childAppearance: string;
+    parentGuardianTraits: string;
+    siblingTraits: string;
+    clothingAccessoryRules: string;
+    stylePalette: string;
+    reusablePromptNotes: string;
+    parentRefinementNotes?: string;
+  };
+  created_at: string;
+  updated_at: string;
+  last_used_at: string;
+};
+
+export type StorySnapshotRecord = {
+  id: string;
+  owner_id: string;
+  story_id: string;
+  family_character_id: string | null;
+  child_name: string;
+  age: number;
+  event: string;
+  memory: string;
+  cover_path: string | null;
+  title: string;
+  created_at: string;
+};
+
+export type GenerationReviewRecord = {
+  id: string;
+  owner_id: string;
+  story_id: string;
+  family_character_id: string | null;
+  status: "passed" | "needs_manual_review";
+  flags: string[];
+  checklist: {
+    characterDrift: "passed" | "review";
+    adultTraitsOnChild: "passed" | "review";
+    missingCoreCharacter: "passed" | "review";
+    styleMismatch: "passed" | "review";
+  };
+  notes: string;
+  created_at: string;
 };

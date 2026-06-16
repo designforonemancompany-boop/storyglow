@@ -230,6 +230,48 @@ illustration.`,
   return mediaFrom(result).bytes;
 }
 
+export async function generateCoverIllustration(
+  characterReference: Buffer,
+  title: string,
+  dedication: string,
+  brief: StoryBrief,
+  emotionalHook: string,
+) {
+  const result = await generateContent(serverEnv().GEMINI_IMAGE_MODEL, {
+    contents: [{
+      role: "user",
+      parts: [
+        { inlineData: { mimeType: "image/png", data: characterReference.toString("base64") } },
+        {
+          text: `${STYLE_MODIFIER}
+Create a dedicated premium personalized storybook cover using the supplied
+illustrated character sheet as the strict identity reference.
+Book title context: ${title}
+Dedication tone: ${dedication}
+Main child: ${brief.childName}, age ${brief.age}
+Family: ${brief.grownUps || "loving parent or guardian"}
+Emotional hook: ${emotionalHook}
+
+Cover requirements:
+- This is a cover, not page 1 interior art.
+- Strong thumbnail readability on a mobile library card.
+- Clear emotional invitation: family love, wonder, and the memorable detail.
+- One iconic focal composition with the main child instantly recognizable.
+- Leave generous clean space where HTML can render the title separately.
+- Keep the premium watercolor, soft paper texture, and cohesive palette.
+- No text, logos, watermarks, or photorealism inside the image.`,
+        },
+      ],
+    }],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+      imageConfig: { aspectRatio: "3:2", imageSize: "2K" },
+    },
+    safetySettings,
+  });
+  return mediaFrom(result).bytes;
+}
+
 function pcmToWav(pcm: Buffer, sampleRate = 24000, channels = 1, bitsPerSample = 16) {
   const header = Buffer.alloc(44);
   const byteRate = sampleRate * channels * bitsPerSample / 8;

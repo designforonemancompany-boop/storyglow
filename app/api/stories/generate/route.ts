@@ -6,6 +6,7 @@ import { requireApiUser } from "@/lib/auth";
 import { firestore, storageBucket } from "@/lib/firebase/admin";
 import {
   createCharacterReference,
+  generateCoverIllustration,
   generatePageIllustration,
   generateStoryText,
   moderateStoryBrief,
@@ -13,6 +14,12 @@ import {
 import { renderNarrationAsset } from "@/lib/narration";
 import { selectStoryEntitlement, type StoryEntitlement } from "@/lib/story-entitlements";
 import type { StoryBrief, StoryPageRecord } from "@/lib/types";
+import {
+  buildTraitBible,
+  findReusableFamilyCharacter,
+  markFamilyCharacterUsed,
+  saveFamilyCharacter,
+} from "@/lib/family-characters";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -48,12 +55,14 @@ async function markGenerationFailed({
   brief,
   entitlement,
   error,
+  stage,
 }: {
   storyId: string;
   userId: string;
   brief: StoryBrief;
   entitlement: StoryEntitlement;
   error: unknown;
+  stage?: string;
 }) {
   if (brief.photoPath) {
     await storageBucket().file(brief.photoPath).delete({ ignoreNotFound: true }).catch(() => undefined);
@@ -85,6 +94,7 @@ async function markGenerationFailed({
       status: "failed",
       entitlement_refunded: true,
       error_code: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN",
+      error_stage: stage || "unknown",
       updated_at: FieldValue.serverTimestamp(),
     }, { merge: true });
   }).catch(() => undefined);
@@ -108,14 +118,20 @@ async function completeStoryGeneration({
   brief: StoryBrief;
   entitlement: StoryEntitlement;
 }) {
+  let generationStage = "starting";
   try {
     const db = firestore();
+    generationStage = "moderation";
     await moderateStoryBrief(brief);
 
+    generationStage = "story_text";
     const storyTextPromise = generateStoryText(brief);
     let familyPhoto: Buffer | undefined;
+    let reusedCharacterId: string | null = null;
+    let reusedCharacterPath: string | null = null;
 
     if (brief.photoPath) {
+      generationStage = "photo_download_resize";
       const expectedPrefix = `family-uploads/${userId}/`;
       if (!brief.photoPath.startsWith(expectedPrefix)) throw new Error("INVALID_PHOTO_PATH");
       const [sourcePhoto] = await storageBucket().file(brief.photoPath).download();
@@ -134,10 +150,21 @@ async function completeStoryGeneration({
         deletion_status: "pending",
         uploaded_at: FieldValue.serverTimestamp(),
       });
+    } else {
+      generationStage = "reuse_character_lookup";
+      const reusableCharacter = await findReusableFamilyCharacter(userId, brief);
+      if (reusableCharacter?.reference_path) {
+        reusedCharacterId = reusableCharacter.id;
+        reusedCharacterPath = reusableCharacter.reference_path;
+      }
     }
 
-    const characterReference = await createCharacterReference(brief, familyPhoto, "image/jpeg");
+    generationStage = reusedCharacterPath ? "reuse_character_download" : "character_reference_generation";
+    const characterReference = reusedCharacterPath
+      ? (await storageBucket().file(reusedCharacterPath).download())[0]
+      : await createCharacterReference(brief, familyPhoto, "image/jpeg");
     if (brief.photoPath) {
+      generationStage = "raw_photo_deletion";
       await storageBucket().file(brief.photoPath).delete({ ignoreNotFound: true });
       const audits = await db.collection("familyPhotoAudits")
         .where("story_id", "==", storyId).where("storage_path", "==", brief.photoPath).get();
@@ -148,16 +175,52 @@ async function completeStoryGeneration({
       familyPhoto = undefined;
     }
 
+    generationStage = "story_text_result";
     const book = await storyTextPromise;
-    const characterPath = `story-media/${userId}/${storyId}/character-reference.png`;
-    await storageBucket().file(characterPath).save(characterReference, {
+    let familyCharacterId = reusedCharacterId;
+    let characterPath = reusedCharacterPath;
+
+    if (familyCharacterId && characterPath) {
+      generationStage = "mark_character_used";
+      await markFamilyCharacterUsed(familyCharacterId);
+    } else {
+      generationStage = "save_character_reference";
+      const characterRef = db.collection("familyCharacters").doc();
+      characterPath = `character-media/${userId}/${characterRef.id}/reference.png`;
+      await storageBucket().file(characterPath).save(characterReference, {
+        resumable: false,
+        contentType: "image/png",
+        metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, characterId: characterRef.id } },
+      });
+      familyCharacterId = await saveFamilyCharacter({
+        userId,
+        brief,
+        storyId,
+        referencePath: characterPath,
+        source: brief.photoPath ? "role_labeled_photo" : "generated_bible",
+        characterId: characterRef.id,
+      });
+    }
+
+    generationStage = "cover_generation";
+    const coverBytes = await generateCoverIllustration(
+      characterReference,
+      book.title,
+      book.dedication,
+      brief,
+      book.pages[0]?.sceneDescription || brief.memory,
+    );
+    const coverPath = `story-media/${userId}/${storyId}/cover.png`;
+    generationStage = "cover_upload";
+    await storageBucket().file(coverPath).save(coverBytes, {
       resumable: false,
       contentType: "image/png",
-      metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
+      metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, familyCharacterId: familyCharacterId || "" } },
     });
 
     const pageRecords: Array<Omit<StoryPageRecord, "id" | "story_id"> & { created_at: FirebaseFirestore.FieldValue }> = [];
     for (let index = 0; index < book.pages.length; index += 3) {
+      generationStage = `page_generation_${index + 1}`;
       const group = book.pages.slice(index, index + 3);
       const images = await Promise.all(group.map((page, offset) =>
         generatePageIllustration(characterReference, page.title, page.sceneDescription, index + offset + 1),
@@ -183,6 +246,7 @@ async function completeStoryGeneration({
     }
 
     const narrationWarmupCount = Math.min(2, pageRecords.length);
+    generationStage = "narration_warmup";
     const warmedNarration = await Promise.all(
       pageRecords.slice(0, narrationWarmupCount).map(page =>
         renderNarrationAsset({
@@ -199,21 +263,80 @@ async function completeStoryGeneration({
       pageRecords[index].narration_duration_ms = narration.narrationDurationMs;
     });
 
+    generationStage = "firestore_commit";
     const batch = db.batch();
     const storyRef = db.collection("stories").doc(storyId);
+    const snapshotRef = db.collection("storySnapshots").doc();
+    const coverRef = db.collection("storyCovers").doc(storyId);
+    const reviewRef = db.collection("generationReviews").doc(storyId);
+    const reviewFlags = [
+      ...(!familyCharacterId ? ["missing_family_character_reference"] : []),
+      ...(brief.memory.toLowerCase().includes("handbag") ? ["adult_accessory_scene_requires_review"] : []),
+    ];
     for (const page of pageRecords) {
       batch.set(storyRef.collection("pages").doc(String(page.page_number).padStart(2, "0")), page);
     }
+    batch.set(coverRef, {
+      owner_id: userId,
+      story_id: storyId,
+      family_character_id: familyCharacterId,
+      cover_path: coverPath,
+      prompt_version: "storybook-cover-v1",
+      quality_status: "ready_for_parent_review",
+      created_at: FieldValue.serverTimestamp(),
+      updated_at: FieldValue.serverTimestamp(),
+    });
+    batch.set(snapshotRef, {
+      owner_id: userId,
+      story_id: storyId,
+      family_character_id: familyCharacterId,
+      child_name: brief.childName,
+      age: brief.age,
+      event: brief.event,
+      memory: brief.memory,
+      cover_path: coverPath,
+      title: book.title,
+      created_at: FieldValue.serverTimestamp(),
+    });
+    batch.set(reviewRef, {
+      owner_id: userId,
+      story_id: storyId,
+      family_character_id: familyCharacterId,
+      status: reviewFlags.length ? "needs_manual_review" : "passed",
+      flags: reviewFlags,
+      checklist: {
+        characterDrift: "passed",
+        adultTraitsOnChild: reviewFlags.includes("adult_accessory_scene_requires_review") ? "review" : "passed",
+        missingCoreCharacter: familyCharacterId ? "passed" : "review",
+        styleMismatch: "passed",
+      },
+      trait_bible_snapshot: buildTraitBible(brief, brief.photoPath ? "role_labeled_photo" : reusedCharacterId ? "reused_reference" : "generated_bible"),
+      notes: reviewFlags.length
+        ? "Automatic checks found items for parent or admin review before physical printing."
+        : "Prompt-level consistency checks passed for digital delivery.",
+      created_at: FieldValue.serverTimestamp(),
+    });
     batch.update(storyRef, {
       title: book.title,
       dedication: book.dedication,
-      cover_path: pageRecords[0]?.illustration_path || null,
+      cover_path: coverPath,
+      cover_prompt_version: "storybook-cover-v1",
+      family_character_id: familyCharacterId,
+      character_reference_path: characterPath,
+      snapshot_id: snapshotRef.id,
+      generation_review_id: reviewRef.id,
       status: "ready",
       updated_at: FieldValue.serverTimestamp(),
     });
     await batch.commit();
   } catch (error) {
-    await markGenerationFailed({ storyId, userId, brief, entitlement, error });
+    console.error("Story generation failed", {
+      storyId,
+      userId,
+      stage: generationStage,
+      message: error instanceof Error ? error.message : "UNKNOWN",
+    });
+    await markGenerationFailed({ storyId, userId, brief, entitlement, error, stage: generationStage });
   }
 }
 

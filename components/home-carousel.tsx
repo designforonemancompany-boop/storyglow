@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ChevronLeft, ChevronRight, Pause, Play, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const slides = [
@@ -9,7 +10,7 @@ const slides = [
     label: "Illustrative family scene",
     title: "Make bedtime feel like their story",
     copy: "Turn the moments only your family knows into a book they can read, hear, and keep.",
-    cta: "Create their story — free",
+    cta: "Create their story - free",
     href: "/create",
     kind: "photo",
   },
@@ -21,23 +22,23 @@ const slides = [
     kind: "form",
   },
   {
-    label: "Optional family likeness",
-    title: "See familiar faces in every adventure",
-    copy: "Add one private family photo, label who is who, and let us turn familiar features into warm storybook characters.",
-    cta: "Create a personalized book",
+    label: "Personal story universe",
+    title: "Keep the characters they recognize",
+    copy: "Each book can reuse the same illustrated family characters, then become a snapshot in your child's growing library.",
+    cta: "Build their universe",
     href: "/create",
-    kind: "likeness",
+    kind: "universe",
   },
   {
     title: "Read it together, or let the story play",
     copy: "Listen on a phone, adjust the speed, set a sleep timer, and continue from the same page tomorrow.",
-    cta: "Try Maya’s story",
+    cta: "Try Maya's story",
     href: "/sample",
     kind: "phone",
   },
   {
-    title: "A story to keep on their shelf",
-    copy: "Read the digital story for free, then order a personalized hardcover from your private library whenever it becomes a family favorite.",
+    title: "A cover worth opening",
+    copy: "Every story gets its own premium book cover for your library, with physical hardcover ordering ready when it becomes a favorite.",
     cta: "Create a book",
     href: "/create",
     kind: "book",
@@ -70,25 +71,35 @@ export function HomeCarousel() {
             {slide.kind === "form" ? (
               <div className="mini-form"><label>Child&apos;s name <span>Maya</span></label><label>What happened? <span>Her second birthday</span></label><label>A detail to remember <span>She carries Mum&apos;s favorite handbag</span></label></div>
             ) : null}
-            {slide.kind === "likeness" ? (
-              <div className="likeness-demo"><Image unoptimized width={620} height={410} src="/assets/family-bedtime.png" alt="" /><span>→</span><Image unoptimized width={620} height={410} src="/assets/birthday-story-scenes.png" alt="" /></div>
+            {slide.kind === "universe" ? (
+              <div className="universe-demo">
+                <div className="character-orbit">
+                  <Image unoptimized width={220} height={220} src="/assets/birthday-story-scenes.png" alt="" />
+                  <span>Reusable Maya</span>
+                </div>
+                <div className="snapshot-stack">
+                  <article><strong>2nd Birthday</strong><small>Mom&apos;s handbag</small></article>
+                  <article><strong>First Ballet Day</strong><small>Coming next</small></article>
+                  <article><strong>Beach Weekend</strong><small>Family snapshot</small></article>
+                </div>
+              </div>
             ) : null}
             {slide.kind === "phone" ? (
-              <div className="phone-demo"><span>Now playing</span><strong>Maya and the Birthday Handbag</strong><div className="round-button">▶</div><div className="fake-track"><i /></div><small>Sleep timer · 15 min</small></div>
+              <div className="phone-demo"><span>Now playing</span><strong>Maya and the Birthday Handbag</strong><div className="round-button"><Play size={18} /></div><div className="fake-track"><i /></div><small>Sleep timer - 15 min</small></div>
             ) : null}
             {slide.kind === "book" ? (
-              <div className="book-mockup"><span className="book-star">✦</span><strong>Maya and the<br />Birthday Handbag</strong><small>A StoryGlow keepsake</small></div>
+              <div className="book-mockup"><span className="book-star"><Sparkles size={44} /></span><strong>Maya and the<br />Birthday Handbag</strong><small>A StoryGlow keepsake</small></div>
             ) : null}
           </article>
         ))}
       </div>
       <div className="carousel-controls">
-        <button className="round-button" onClick={() => { setPaused(true); setActive((active + 4) % 5); }} aria-label="Previous slide">←</button>
+        <button className="round-button" onClick={() => { setPaused(true); setActive((active + slides.length - 1) % slides.length); }} aria-label="Previous slide"><ChevronLeft size={20} /></button>
         <div className="dots" role="tablist">
           {slides.map((slide, index) => <button key={slide.title} className={`dot ${index === active ? "active" : ""}`} onClick={() => { setPaused(true); setActive(index); }} aria-label={`Show slide ${index + 1}`} />)}
         </div>
-        <button className="round-button" onClick={() => setPaused(value => !value)} aria-label={paused ? "Play carousel" : "Pause carousel"}>{paused ? "▶" : "Ⅱ"}</button>
-        <button className="round-button" onClick={() => { setPaused(true); setActive((active + 1) % 5); }} aria-label="Next slide">→</button>
+        <button className="round-button" onClick={() => setPaused(value => !value)} aria-label={paused ? "Play carousel" : "Pause carousel"}>{paused ? <Play size={18} /> : <Pause size={18} />}</button>
+        <button className="round-button" onClick={() => { setPaused(true); setActive((active + 1) % slides.length); }} aria-label="Next slide"><ChevronRight size={20} /></button>
       </div>
     </section>
   );

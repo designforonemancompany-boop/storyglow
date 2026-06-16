@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StoryGlow Living Frame Prototype</title>
+    <style>
+      body { margin: 0; background: #17344a; }
+      #storyglow-living-frame {
+        position: relative;
+        width: 1080px;
+        height: 1080px;
+        overflow: hidden;
+        background: #fffaf0;
+        color: #17344a;
+        font-family: Arial, sans-serif;
+      }
+      .frame {
+        position: absolute;
+        inset: 70px;
+        overflow: hidden;
+        border: 18px solid #fffaf0;
+        border-radius: 44px;
+        box-shadow: 0 38px 110px rgba(23, 52, 74, .28);
+        background: #dfead6;
+      }
+      .art {
+        position: absolute;
+        inset: -28px;
+        background-image: url("birthday-story-scenes.png");
+        background-size: cover;
+        background-position: center;
+      }
+      .paper {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(circle at 28% 24%, rgba(241,185,66,.26), transparent 24%),
+          radial-gradient(circle at 82% 72%, rgba(121,183,209,.22), transparent 28%),
+          linear-gradient(135deg, rgba(255,250,240,.22), rgba(255,250,240,0));
+        mix-blend-mode: soft-light;
+      }
+      .glow {
+        position: absolute;
+        right: 120px;
+        bottom: 120px;
+        width: 260px;
+        height: 260px;
+        border-radius: 50%;
+        background: rgba(241,185,66,.28);
+        filter: blur(38px);
+      }
+      .dust {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #f1b942;
+        box-shadow: 150px 90px 0 rgba(255,250,240,.85), 330px 210px 0 rgba(241,185,66,.7), 610px 120px 0 rgba(255,250,240,.7), 760px 370px 0 rgba(241,185,66,.6);
+      }
+      .caption {
+        position: absolute;
+        left: 96px;
+        right: 96px;
+        bottom: 92px;
+        padding: 24px 28px;
+        border-radius: 24px;
+        background: rgba(255,250,240,.9);
+        box-shadow: 0 18px 50px rgba(23,52,74,.16);
+      }
+      .caption strong { display: block; font: 56px/1.05 Georgia, serif; letter-spacing: -.04em; }
+      .caption span { display: block; margin-top: 8px; color: #496071; font-size: 24px; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <div id="storyglow-living-frame" data-composition-id="storyglow-living-frame" data-width="1080" data-height="1080" data-start="0" data-duration="2" data-track-index="0">
+      <div class="frame" data-layout-allow-overflow>
+        <div class="art"></div>
+        <div class="paper"></div>
+        <div class="glow"></div>
+        <div class="dust"></div>
+      </div>
+      <div class="caption">
+        <strong>Maya's birthday story</strong>
+        <span>A tiny living cover moment for StoryGlow</span>
+      </div>
+      <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+      <script>
+        window.__timelines = window.__timelines || {};
+        const tl = gsap.timeline({ paused: true });
+        tl.from(".caption", { y: 26, opacity: 0, duration: 0.45, ease: "power3.out" }, 0.12);
+        tl.from(".frame", { scale: 0.985, opacity: 0, duration: 0.5, ease: "sine.out" }, 0.1);
+        tl.fromTo(".art", { scale: 1.04 }, { x: 14, y: -10, scale: 1.055, duration: 2, ease: "sine.inOut" }, 0);
+        tl.to(".paper", { opacity: 0.82, duration: 1, repeat: 1, yoyo: true, ease: "sine.inOut" }, 0);
+        tl.to(".glow", { scale: 1.12, opacity: 0.72, duration: 1, repeat: 1, yoyo: true, ease: "sine.inOut" }, 0);
+        tl.to(".dust", { x: 18, y: -18, opacity: 0.42, duration: 1, repeat: 1, yoyo: true, ease: "sine.inOut" }, 0);
+        window.__timelines["storyglow-living-frame"] = tl;
+      </script>
+    </div>
+  </body>
+</html>
