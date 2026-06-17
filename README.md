@@ -191,3 +191,6 @@ Open `/feedback-admin` while signed in with an email listed in
 story IDs, cadence survey answers, and proposed review actions. The page reads
 with the server-side Firebase Admin SDK; Firestore browser reads for
 `feedbackReviews` remain denied.
+
+For JSON export, call `/api/admin/feedback?limit=20` while signed in as an
+allowlisted admin, or with `Authorization: Bearer FEEDBACK_WEBHOOK_SECRET`.

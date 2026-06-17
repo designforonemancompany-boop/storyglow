@@ -8,11 +8,15 @@ function configuredAdminEmails() {
     .filter(Boolean);
 }
 
+export function isAdminEmail(email: string | undefined, verified = false) {
+  const normalized = email?.toLowerCase();
+  const allowed = configuredAdminEmails();
+  return Boolean(normalized && verified && allowed.includes(normalized));
+}
+
 export async function requireAdminUser() {
   const user = await requireUser();
-  const email = user.email?.toLowerCase();
-  const allowed = configuredAdminEmails();
-  if (!email || !user.email_verified || !allowed.includes(email)) {
+  if (!isAdminEmail(user.email, user.email_verified)) {
     redirect("/library");
   }
   return user;
