@@ -81,6 +81,9 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(reader, /\/api\/progress/);
   assert.match(feedback, /rewardCredits = 5/);
   assert.match(feedback, /rewardCredits = 1/);
+  assert.match(feedback, /export async function GET/);
+  assert.match(feedback, /Admin access required/);
+  assert.match(feedback, /FEEDBACK_WEBHOOK_SECRET/);
   assert.match(feedbackReview, /feedbackReviews/);
   assert.match(feedbackReview, /proposed_solution/);
   assert.match(feedbackReview, /needs_review/);
