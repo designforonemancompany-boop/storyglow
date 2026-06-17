@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library, versionRoute, adminFeedback, adminAccess, appHosting] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library, versionRoute, adminFeedback, adminAlias, adminAccess, appHosting] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -24,6 +24,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("app/library/page.tsx"),
     read("app/api/version/route.ts"),
     read("app/admin/feedback/page.tsx"),
+    read("app/feedback-admin/page.tsx"),
     read("lib/admin-access.ts"),
     read("apphosting.yaml"),
   ]);
@@ -90,6 +91,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(adminFeedback, /userFeedback/);
   assert.match(adminFeedback, /feedbackReviews/);
   assert.match(adminFeedback, /message/);
+  assert.match(adminAlias, /app\/admin\/feedback\/page/);
   assert.match(appHosting, /STORYGLOW_ADMIN_EMAILS/);
   assert.match(auth, /createSessionCookie/);
   assert.match(auth, /email_verified/);

@@ -186,7 +186,7 @@ browser clients.
 
 ## Admin feedback inbox
 
-Open `/admin/feedback` while signed in with an email listed in
+Open `/feedback-admin` while signed in with an email listed in
 `STORYGLOW_ADMIN_EMAILS` to view the latest full feedback comments, timestamps,
 story IDs, cadence survey answers, and proposed review actions. The page reads
 with the server-side Firebase Admin SDK; Firestore browser reads for
