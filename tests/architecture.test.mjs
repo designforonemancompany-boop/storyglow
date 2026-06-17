@@ -122,6 +122,9 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(library, /Temporary illustration fallback/);
   assert.match(firebaseConfig, /publicEnv/);
   assert.match(versionRoute, /K_REVISION/);
+  assert.match(versionRoute, /feedbackExport/);
+  assert.match(versionRoute, /userFeedback/);
+  assert.match(versionRoute, /Admin access required/);
   assert.doesNotMatch(firebaseConfig, /GOOGLE_GENERATIVE_AI_API_KEY|STRIPE_SECRET_KEY/);
 });
 
