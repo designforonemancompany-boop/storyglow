@@ -25,6 +25,16 @@ import {
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
+const CharacterPresetIdSchema = z.enum([
+  "asian-daughter-toddler-cozy",
+  "asian-daughter-preschool-birthday",
+  "asian-son-toddler-cozy",
+  "asian-son-preschool-adventure",
+  "asian-mom-warm-cardigan",
+  "asian-dad-cozy-sweater",
+  "asian-sibling-playful",
+]);
+
 const BriefSchema = z.object({
   childName: z.string().trim().min(1).max(40),
   age: z.coerce.number().int().min(2).max(8),
@@ -39,6 +49,8 @@ const BriefSchema = z.object({
     role: z.enum(["main_character", "parent_guardian", "sibling"]),
     displayName: z.string().max(60).optional(),
   })).max(12).optional(),
+  selectedCharacterPresetIds: z.array(CharacterPresetIdSchema).max(7).optional(),
+  characterStyleVariant: z.enum(["cozy-bedtime", "birthday", "school-day", "family-outing"]).optional(),
 }).superRefine((brief, context) => {
   if (!brief.photoPath) return;
   const roles = brief.familyRoles || [];
@@ -238,6 +250,8 @@ async function completeStoryGeneration({
     const reviewRef = db.collection("generationReviews").doc(storyId);
     const reviewFlags = [
       ...generationReviewFlags,
+      ...(brief.photoPath ? ["photo_derived_character_sheet"] : []),
+      ...(brief.selectedCharacterPresetIds?.length ? ["preset_character_sheet"] : []),
       ...(!familyCharacterId ? ["missing_family_character_reference"] : []),
       ...(brief.memory.toLowerCase().includes("handbag") ? ["adult_accessory_scene_requires_review"] : []),
     ];
@@ -433,6 +447,8 @@ async function completeStoryGeneration({
 
     const finalReviewFlags = [
       ...generationReviewFlags,
+      ...(brief.photoPath ? ["photo_derived_character_sheet"] : []),
+      ...(brief.selectedCharacterPresetIds?.length ? ["preset_character_sheet"] : []),
       ...(!familyCharacterId ? ["missing_family_character_reference"] : []),
       ...(brief.memory.toLowerCase().includes("handbag") ? ["adult_accessory_scene_requires_review"] : []),
       ...(narrationWarmupFailures.length ? ["narration_warmup_retry_needed"] : []),

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { presetPromptSummary } from "@/lib/character-presets";
 import { serverEnv } from "@/lib/env";
 import type { FamilyRole, StoryBrief } from "@/lib/types";
 
@@ -199,18 +200,41 @@ function roleDescription(roles: FamilyRole[] = []) {
   ).join(". ");
 }
 
-export async function createCharacterReference(brief: StoryBrief, familyPhoto?: Buffer, photoMime = "image/jpeg") {
-  const prompt = `${STYLE_MODIFIER}
-Create a clean illustrated character reference sheet for a personalized children's book.
-Main child: ${brief.childName}, age ${brief.age}, ${brief.characterTraits}.
+function characterReferenceSheetPrompt(brief: StoryBrief, familyPhoto?: Buffer) {
+  return `${STYLE_MODIFIER}
+Create a professional non-photorealistic illustrated character bible sheet for StoryGlow.
+Use a clean, organized white or parchment background with thin panel divisions, but no text,
+letters, labels, logos, watermarks, or readable markings.
+
+Layout requirements adapted from professional character turnarounds:
+- Left side: front, side, and back full-body views of the same core characters.
+- Right side: face closeups, hair/back-of-head detail, outfit material detail,
+  accessory detail, color swatches, and three expression closeups.
+- Expressions should be clearly different but not distorted: playful curious smile,
+  sweet gentle smile, and slightly upset or thoughtful bedtime-safe expression.
+- Keep face shape, proportions, hair, outfit, accessories, body scale, palette,
+  and art style absolutely consistent across all views.
+- Preserve child age. Adult-only details must stay with adults.
+
+Main child: ${brief.childName}, age ${brief.age}, ${brief.gender}.
 Family: ${brief.grownUps || "loving parent or guardian"}.
-${familyPhoto ? `Use the supplied family photograph only as a private visual reference. Manual role labels: ${roleDescription(brief.familyRoles)}. Translate recognizable high-level features into gentle cartoon storybook characters without copying the photograph, background, pose, or clothing.` : ""}
-Show each character once, full body, neutral friendly pose, consistent proportions,
-simple clothing palette, and an uncluttered parchment background.
-Create a visual character bible: assign each person a stable silhouette, hair shape,
-skin tone, clothing palette, and role-specific accessories. Never give adult-only
-features such as beards, glasses, or handbags to the child unless the prompt explicitly
-requests the child wearing that item in a scene.`;
+Traits from parent: ${brief.characterTraits || "warm, curious, bedtime-friendly child"}.
+Preset character choices, if any:
+${presetPromptSummary(brief)}
+
+${familyPhoto ? `Use the supplied family photograph only as private visual reference.
+Manual role labels: ${roleDescription(brief.familyRoles)}.
+Translate high-level likeness cues into premium illustrated storybook characters.
+Do not copy the photo, background, pose, camera perspective, or exact clothing.
+Do not over-smooth or beautify beyond the illustrated style; keep distinctive high-level
+features such as hair shape, face silhouette, glasses, and family roles consistent.` : ""}
+
+The result is a reusable identity reference sheet for future story covers and pages,
+not a final story scene.`;
+}
+
+export async function createCharacterReference(brief: StoryBrief, familyPhoto?: Buffer, photoMime = "image/jpeg") {
+  const prompt = characterReferenceSheetPrompt(brief, familyPhoto);
 
   const parts: GeminiPart[] = [{ text: prompt }];
   if (familyPhoto) parts.push({ inlineData: { mimeType: photoMime, data: familyPhoto.toString("base64") } });
@@ -218,7 +242,7 @@ requests the child wearing that item in a scene.`;
     contents: [{ role: "user", parts }],
     generationConfig: {
       responseModalities: ["IMAGE"],
-      imageConfig: { aspectRatio: "3:2", imageSize: "2K" },
+      imageConfig: { aspectRatio: "16:9", imageSize: "2K" },
     },
     safetySettings,
   });
@@ -242,6 +266,8 @@ Create page ${pageNumber} of the same children's picture book using the supplied
 illustrated character sheet as the strict identity reference.
 Page title context: ${pageTitle}
 Scene: ${sceneDescription}
+Use the full character bible sheet: match the same front/side/back identity,
+expression design, hair shape, outfit details, adult accessories, and color swatches.
 Landscape double-page composition, clear focal action, safe age-appropriate
 environment, and quiet space for separately rendered HTML story text.
 Keep clothing, scale, face shape, skin tone, and role-specific accessories consistent
@@ -280,6 +306,8 @@ Parents or grown-ups: ${brief.grownUps || "their loving family"}
 Character traits: ${brief.characterTraits || "joyful and curious"}
 Event: ${brief.event}
 Memorable detail: ${brief.memory}
+Preset character choices:
+${presetPromptSummary(brief)}
 Page title context: ${pageTitle}
 Scene: ${sceneDescription}
 
@@ -319,6 +347,8 @@ Dedication tone: ${dedication}
 Main child: ${brief.childName}, age ${brief.age}
 Family: ${brief.grownUps || "loving parent or guardian"}
 Emotional hook: ${emotionalHook}
+Use the full character bible sheet: match identity, outfit, expression logic,
+adult accessories, child age, and palette exactly.
 
 Cover requirements:
 - This is a cover, not page 1 interior art.
@@ -362,6 +392,8 @@ Family: ${brief.grownUps || "loving parent or guardian"}
 Character traits: ${brief.characterTraits || "joyful and curious"}
 Event: ${brief.event}
 Memorable detail: ${brief.memory}
+Preset character choices:
+${presetPromptSummary(brief)}
 Emotional hook: ${emotionalHook}
 
 Cover requirements:

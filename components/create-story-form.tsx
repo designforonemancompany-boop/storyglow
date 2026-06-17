@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { CHARACTER_PRESETS, CHARACTER_STYLE_VARIANTS } from "@/lib/character-presets";
 import type { FamilyRole } from "@/lib/types";
 
 export function CreateStoryForm({
@@ -17,6 +18,12 @@ export function CreateStoryForm({
   const [photo, setPhoto] = useState<File | null>(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [consent, setConsent] = useState(false);
+  const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>([
+    "asian-daughter-preschool-birthday",
+    "asian-mom-warm-cardigan",
+    "asian-dad-cozy-sweater",
+  ]);
+  const [styleVariant, setStyleVariant] = useState("cozy-bedtime");
   const [roles, setRoles] = useState<FamilyRole[]>([
     { marker: 1, role: "main_character" },
     { marker: 2, role: "parent_guardian" },
@@ -74,6 +81,8 @@ export function CreateStoryForm({
           characterTraits: form.get("characterTraits"),
           photoPath,
           familyRoles: photo ? roles : undefined,
+          selectedCharacterPresetIds: photo ? undefined : selectedPresetIds,
+          characterStyleVariant: photo ? undefined : styleVariant,
         }),
       });
       const result = await response.json();
@@ -130,7 +139,40 @@ export function CreateStoryForm({
           <label className="checkbox"><input checked={consent} onChange={event => setConsent(event.target.checked)} type="checkbox" /><span>I am the parent or authorized adult, I have permission to use this photo, and I agree to private processing for these illustrations.</span></label>
           <p className="privacy-note">The raw family photo is deleted immediately after the illustrated character reference is created, including when generation fails.</p>
         </section>
-      ) : null}
+      ) : (
+        <section className="preset-character-panel">
+          <h3>Or choose illustrated family characters</h3>
+          <p>Use a starter Asian family character set when you prefer not to upload a photo. You can still describe exact traits above.</p>
+          <div className="preset-style-row">
+            <label>Story look
+              <select value={styleVariant} onChange={event => setStyleVariant(event.target.value)}>
+                {CHARACTER_STYLE_VARIANTS.map(variant => <option key={variant.id} value={variant.id}>{variant.label}</option>)}
+              </select>
+            </label>
+          </div>
+          <div className="preset-grid">
+            {CHARACTER_PRESETS.map(preset => {
+              const checked = selectedPresetIds.includes(preset.id);
+              return (
+                <label className={`preset-card${checked ? " selected" : ""}`} key={preset.id}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={event => setSelectedPresetIds(current =>
+                      event.target.checked
+                        ? [...new Set([...current, preset.id])]
+                        : current.filter(id => id !== preset.id),
+                    )}
+                  />
+                  <span>{preset.label}</span>
+                  <small>{preset.description}</small>
+                </label>
+              );
+            })}
+          </div>
+          <p className="privacy-note">Preset characters are only starting points. StoryGlow still creates a private reusable character sheet for your account.</p>
+        </section>
+      )}
       <p className="form-message" role="alert">{message}</p>
       <div className="form-footer"><span>Generation creates a cover plus 10-12 illustrated pages and may take several minutes.</span><button className="button" disabled={busy}>{busy ? "Creating your book..." : isSignedIn ? "Create my story" : "Sign in and create"}</button></div>
     </form>

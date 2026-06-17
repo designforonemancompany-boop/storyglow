@@ -136,6 +136,14 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
 .checkbox { display: flex; align-items: flex-start; gap: 10px; margin: 18px 0; font-weight: 400 !important; }
 .checkbox input { margin-top: 5px; }
 .privacy-note { padding: 12px; color: var(--ink-soft); background: #e7f0ef; border-radius: 9px; font-size: .85rem; }
+.preset-character-panel { margin-top: 26px; padding: 24px; background: #fff7e6; border: 1px solid rgba(23,52,74,.08); border-radius: 18px; }
+.preset-style-row { max-width: 340px; margin: 18px 0; }
+.preset-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 12px; margin: 18px 0; }
+.preset-card { display: grid; gap: 6px; min-height: 150px; padding: 16px; background: white; border: 1px solid #d8cdbb; border-radius: 16px; cursor: pointer; }
+.preset-card.selected { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(219,96,113,.18); }
+.preset-card input { width: auto; margin: 0; }
+.preset-card span { font-weight: 900; }
+.preset-card small { color: var(--ink-soft); line-height: 1.45; }
 .form-footer { margin-top: 25px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .form-footer span { color: var(--ink-soft); font-size: .85rem; }
 .google-button { width: 100%; color: var(--ink); background: white; border: 1px solid #c9bca8; }

@@ -8,7 +8,22 @@ export type StoryBrief = {
   characterTraits: string;
   photoPath?: string;
   familyRoles?: FamilyRole[];
+  selectedCharacterPresetIds?: CharacterPresetId[];
+  characterStyleVariant?: CharacterStyleVariantId;
 };
+
+export type CharacterPresetRole = "daughter" | "son" | "mom" | "dad" | "sibling";
+
+export type CharacterPresetId =
+  | "asian-daughter-toddler-cozy"
+  | "asian-daughter-preschool-birthday"
+  | "asian-son-toddler-cozy"
+  | "asian-son-preschool-adventure"
+  | "asian-mom-warm-cardigan"
+  | "asian-dad-cozy-sweater"
+  | "asian-sibling-playful";
+
+export type CharacterStyleVariantId = "cozy-bedtime" | "birthday" | "school-day" | "family-outing";
 
 export type FamilyRole = {
   marker: number;
@@ -74,6 +89,14 @@ export type FamilyCharacterRecord = {
   status: "active" | "archived" | "draft_failed";
   source: "generated_bible" | "role_labeled_photo" | "reused_reference";
   reference_path: string;
+  reference_assets?: Array<{
+    role: "main_character" | "parent_guardian" | "sibling" | "family_sheet";
+    label: string;
+    path: string;
+    presetId?: CharacterPresetId;
+  }>;
+  selected_preset_ids?: CharacterPresetId[];
+  character_style_variant?: CharacterStyleVariantId | null;
   trait_bible: {
     childAppearance: string;
     parentGuardianTraits: string;
@@ -81,6 +104,7 @@ export type FamilyCharacterRecord = {
     clothingAccessoryRules: string;
     stylePalette: string;
     reusablePromptNotes: string;
+    presetSummary?: string;
     parentRefinementNotes?: string;
   };
   created_at: string;
