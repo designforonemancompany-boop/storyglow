@@ -188,9 +188,10 @@ browser clients.
 
 ## Admin beta operations
 
-Open `/admin` while signed in with an email listed in `STORYGLOW_ADMIN_EMAILS`
-to run beta operations before payment checkout is ready. If the hosting layer
-does not serve exact `/admin`, use the equivalent `/beta-admin` alias:
+Open `/admin/feedback` while signed in with an email listed in
+`STORYGLOW_ADMIN_EMAILS` to run beta operations before payment checkout is
+ready. The code also includes `/admin` and `/beta-admin` aliases, but
+`/admin/feedback` is the verified App Hosting path:
 
 - Review latest full feedback comments, timestamps, story IDs, cadence survey
   answers, proposed fixes, internal notes, and review status.
@@ -204,7 +205,7 @@ Firestore browser reads and writes for `feedbackReviews` and `creditLedger`
 remain denied. Admin actions run through protected Next.js server routes using
 the Firebase Admin SDK.
 
-Open `/feedback-admin` for the legacy read-only feedback inbox.
+Open `/feedback-admin` as a secondary alias to the same dashboard.
 
 For JSON export, call `/api/version?feedback=1&limit=20` while signed in as an
 allowlisted admin, or with `Authorization: Bearer FEEDBACK_WEBHOOK_SECRET`.

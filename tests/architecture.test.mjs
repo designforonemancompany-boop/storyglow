@@ -106,10 +106,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(adminDashboard, /Apply credit change/);
   assert.match(adminDashboard, /Save review/);
   assert.match(adminDashboard, /storybookCredits/);
-  assert.match(adminFeedback, /Feedback Inbox/);
-  assert.match(adminFeedback, /userFeedback/);
-  assert.match(adminFeedback, /feedbackReviews/);
-  assert.match(adminFeedback, /message/);
+  assert.match(adminFeedback, /app\/admin\/page/);
   assert.match(adminAlias, /app\/admin\/feedback\/page/);
   assert.match(betaAdminAlias, /app\/admin\/page/);
   assert.match(adminFeedbackApi, /FEEDBACK_WEBHOOK_SECRET/);

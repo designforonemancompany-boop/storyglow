@@ -75,7 +75,7 @@ export default async function AdminPage() {
         ) : null}
         <div className="admin-toolbar">
           <span>Signed in as {admin.email}</span>
-          <Link className="text-button" href="/admin/feedback">Read-only feedback inbox</Link>
+          <Link className="text-button" href="/admin/feedback">Stable admin URL</Link>
         </div>
         <AdminDashboard feedback={rows} />
       </main>
