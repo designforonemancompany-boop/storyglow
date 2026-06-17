@@ -51,6 +51,7 @@ env:
     secret: FEEDBACK_WEBHOOK_SECRET
     availability: [RUNTIME]
   - variable: STORYGLOW_ADMIN_EMAILS
+    value: "designforonemancompany@gmail.com"
     availability: [RUNTIME]
   - variable: PHYSICAL_BOOK_PRICE_CENTS
     value: "4900"
