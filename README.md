@@ -64,6 +64,7 @@ GEMINI_IMAGE_MODEL=gemini-3.1-flash-image-preview
 GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
 FEEDBACK_WEBHOOK_URL=
 FEEDBACK_WEBHOOK_SECRET=
+STORYGLOW_ADMIN_EMAILS=
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 PHYSICAL_BOOK_PRICE_CENTS=4900
@@ -73,6 +74,9 @@ PHYSICAL_BOOK_SHIPPING_CENTS=800
 `FIREBASE_PRIVATE_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`, and
 `FEEDBACK_WEBHOOK_SECRET`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET` are
 server-only secrets. Never prefix them with `NEXT_PUBLIC_`.
+
+`STORYGLOW_ADMIN_EMAILS` is a comma-separated list of verified Firebase Auth
+emails allowed to open the admin feedback inbox at `/admin/feedback`.
 
 ## Physical-book checkout
 
@@ -179,3 +183,11 @@ When `FEEDBACK_WEBHOOK_URL` is set, every accepted feedback entry is posted
 server-to-server with a Bearer token from `FEEDBACK_WEBHOOK_SECRET`. Credits are
 assigned atomically inside a Firestore transaction and cannot be changed by
 browser clients.
+
+## Admin feedback inbox
+
+Open `/admin/feedback` while signed in with an email listed in
+`STORYGLOW_ADMIN_EMAILS` to view the latest full feedback comments, timestamps,
+story IDs, cadence survey answers, and proposed review actions. The page reads
+with the server-side Firebase Admin SDK; Firestore browser reads for
+`feedbackReviews` remain denied.

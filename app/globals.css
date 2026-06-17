@@ -226,6 +226,19 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
 .sentiment-options button { min-height: 92px; padding: 12px; border: 1px solid #c9bca8; border-radius: 14px; background: white; cursor: pointer; font-weight: 800; }
 .sentiment-options button span { display: block; margin-bottom: 6px; font-size: 1.7rem; }
 .sentiment-options button.selected { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(219,96,113,.2); background: #fff2f3; }
+.admin-feedback-page h1 { max-width: 880px; }
+.feedback-list { display: grid; gap: 22px; margin-top: 36px; }
+.feedback-card { padding: 26px; background: white; border-radius: 18px; box-shadow: 0 12px 38px rgba(23,52,74,.1); }
+.feedback-card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.feedback-card-top h2 { margin: 10px 0 0; font-size: clamp(1.8rem,3vw,2.8rem); }
+.feedback-card-top time { color: var(--ink-soft); font-weight: 800; white-space: nowrap; }
+.feedback-comment { padding: 20px; white-space: pre-wrap; background: var(--paper); border-left: 5px solid var(--gold); border-radius: 14px; font: 1.08rem/1.7 var(--serif); }
+.feedback-meta { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; margin: 18px 0 0; }
+.feedback-meta div { min-width: 0; padding: 12px; background: #e7f0ef; border-radius: 12px; }
+.feedback-meta dt { color: var(--copper); font-size: .72rem; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+.feedback-meta dd { margin: 5px 0 0; overflow-wrap: anywhere; font-weight: 800; }
+.feedback-solution { margin-top: 18px; padding: 16px; background: #fff1bf; border-radius: 14px; }
+.feedback-solution p { margin: 8px 0 0; }
 
 @media (max-width: 850px) {
   html, body { max-width: 100%; overflow-x: hidden; }
@@ -272,6 +285,9 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
   .feedback-fab .feedback-label { display: none; }
   .feedback-dialog { padding: 34px 20px; }
   .sentiment-options { grid-template-columns: 1fr; }
+  .feedback-card { padding: 20px; }
+  .feedback-card-top { flex-direction: column; }
+  .feedback-card-top time { white-space: normal; }
   .order-list article { grid-template-columns: 1fr; gap: 8px; }
   .order-success { padding: 38px 22px; }
 }

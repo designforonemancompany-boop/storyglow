@@ -50,6 +50,8 @@ env:
   - variable: FEEDBACK_WEBHOOK_SECRET
     secret: FEEDBACK_WEBHOOK_SECRET
     availability: [RUNTIME]
+  - variable: STORYGLOW_ADMIN_EMAILS
+    availability: [RUNTIME]
   - variable: PHYSICAL_BOOK_PRICE_CENTS
     value: "4900"
     availability: [BUILD, RUNTIME]
