@@ -7,7 +7,7 @@ import { firebaseAdminAuth, firestore } from "@/lib/firebase/admin";
 const BodySchema = z.object({
   idToken: z.string().min(100),
   marketingOptIn: z.boolean().default(false),
-  source: z.enum(["email_signin", "google_signin"]).default("google_signin"),
+  source: z.enum(["email_signin", "google_signin", "password_signin"]).default("google_signin"),
 });
 
 const EXPIRES_IN = 14 * 24 * 60 * 60 * 1000;
@@ -18,7 +18,9 @@ export async function POST(request: Request) {
 
   const auth = firebaseAdminAuth();
   const decoded = await auth.verifyIdToken(parsed.data.idToken, true);
-  if (!decoded.email || !decoded.email_verified) {
+  const isPasswordSignIn = parsed.data.source === "password_signin"
+    && decoded.firebase?.sign_in_provider === "password";
+  if (!decoded.email || (!decoded.email_verified && !isPasswordSignIn)) {
     return NextResponse.json({ error: "A verified email is required." }, { status: 403 });
   }
 
@@ -39,6 +41,7 @@ export async function POST(request: Request) {
         displayName: decoded.name || "",
         avatarUrl: decoded.picture || "",
         authProviders: decoded.firebase?.sign_in_provider ? [decoded.firebase.sign_in_provider] : [],
+        emailVerified: Boolean(decoded.email_verified),
         storybookCredits: 0,
         freeStoriesUsed: 0,
         marketingOptIn: parsed.data.marketingOptIn,
@@ -61,6 +64,7 @@ export async function POST(request: Request) {
       const newlyOptingIn = parsed.data.marketingOptIn && !profile.data()?.marketingOptIn;
       transaction.set(profileRef, {
         email: decoded.email,
+        emailVerified: Boolean(decoded.email_verified),
         displayName: profile.data()?.displayName || decoded.name || "",
         avatarUrl: profile.data()?.avatarUrl || decoded.picture || "",
         authProviders: [...providers],

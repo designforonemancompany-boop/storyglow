@@ -7,7 +7,8 @@ with Next.js App Router, Firebase, and Google AI Studio.
 
 - Stable-height five-slide homepage journey
 - Fully playable sample: “Maya and the Birthday Handbag”
-- Google authorization and passwordless Firebase email-link authentication
+- Google authorization, Firebase email/password sign-in, and passwordless
+  email-link fallback
 - Persistent secure server sessions across desktop and mobile
 - Private Firestore story library protected by ownership rules
 - Google AI Studio structured story generation with Gemini
@@ -30,7 +31,7 @@ with Next.js App Router, Firebase, and Google AI Studio.
 
 ```text
 Firebase App Hosting / Next.js
-  ├─ Firebase Authentication: Google + email links
+  ├─ Firebase Authentication: Google + email/password + email links
   ├─ Firebase Admin session cookies: HTTP-only, 14-day sessions
   ├─ Cloud Firestore: profiles, stories, pages, progress, feedback, consent
   ├─ Cloud Storage: temporary private photos and generated private media
@@ -78,7 +79,8 @@ server-only secrets. Never prefix them with `NEXT_PUBLIC_`.
 
 `STORYGLOW_ADMIN_EMAILS` is a comma-separated list of verified Firebase Auth
 emails allowed to open the admin dashboard at `/admin`. Admins use the same
-magic-link or Google sign-in flow as parents; there is no separate password.
+email/password, magic-link, or Google sign-in flow as parents, but admin access
+still requires a verified Firebase email.
 
 ## Physical-book checkout
 
@@ -109,6 +111,10 @@ order or credit records.
 4. In Authentication, enable:
    - Google
    - Email/Password, with Email link sign-in enabled
+
+StoryGlow enforces a parent-friendly password checklist in the browser:
+minimum 8 characters with uppercase, lowercase, number, and symbol. Firebase
+stores and verifies passwords; the app never stores raw passwords.
 5. Add `localhost` and the final App Hosting domain to Authorized domains.
 6. Create Firestore in production mode and enable Cloud Storage.
 7. Deploy the included security configuration:

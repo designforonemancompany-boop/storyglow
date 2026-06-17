@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, storyApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, signInForm, storyApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -15,6 +15,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("components/story-reader.tsx"),
     read("app/api/feedback/route.ts"),
     read("app/api/auth/session/route.ts"),
+    read("components/sign-in-form.tsx"),
     read("app/api/stories/[id]/route.ts"),
     read("app/api/stories/[id]/checkout/route.ts"),
     read("app/api/stripe/webhook/route.ts"),
@@ -149,6 +150,14 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(appHosting, /STORYGLOW_ADMIN_EMAILS/);
   assert.match(auth, /createSessionCookie/);
   assert.match(auth, /email_verified/);
+  assert.match(auth, /password_signin/);
+  assert.match(signInForm, /createUserWithEmailAndPassword/);
+  assert.match(signInForm, /signInWithEmailAndPassword/);
+  assert.match(signInForm, /sendPasswordResetEmail/);
+  assert.match(signInForm, /sendSignInLinkToEmail/);
+  assert.match(signInForm, /At least 8 characters/);
+  assert.match(signInForm, /One uppercase letter/);
+  assert.match(signInForm, /One symbol/);
   assert.match(generation, /selectStoryEntitlement/);
   assert.match(generation, /storybookCredits: FieldValue\.increment\(-1\)/);
   assert.match(generation, /entitlement_refunded/);
