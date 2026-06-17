@@ -260,6 +260,44 @@ illustration.`,
   return mediaFrom(result).bytes;
 }
 
+export async function generateStandalonePageIllustration(
+  brief: StoryBrief,
+  pageTitle: string,
+  sceneDescription: string,
+  pageNumber: number,
+) {
+  const result = await generateContent(serverEnv().GEMINI_IMAGE_MODEL, {
+    contents: [{
+      role: "user",
+      parts: [{
+        text: `${STYLE_MODIFIER}
+Create page ${pageNumber} of a personalized children's picture book.
+This is a direct scene illustration fallback because the reusable character sheet is
+not available yet. Still make the image specific to the family story.
+
+Main child: ${brief.childName}, age ${brief.age}, ${brief.gender}
+Parents or grown-ups: ${brief.grownUps || "their loving family"}
+Character traits: ${brief.characterTraits || "joyful and curious"}
+Event: ${brief.event}
+Memorable detail: ${brief.memory}
+Page title context: ${pageTitle}
+Scene: ${sceneDescription}
+
+Landscape double-page composition, clear focal action, safe age-appropriate
+environment, and quiet space for separately rendered HTML story text.
+Keep the main child visually consistent with this brief, and do not place text inside
+the illustration.`,
+      }],
+    }],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+      imageConfig: { aspectRatio: "3:2", imageSize: "2K" },
+    },
+    safetySettings,
+  });
+  return mediaFrom(result).bytes;
+}
+
 export async function generateCoverIllustration(
   characterReference: Buffer,
   title: string,
@@ -292,6 +330,48 @@ Cover requirements:
 - No text, logos, watermarks, or photorealism inside the image.`,
         },
       ],
+    }],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+      imageConfig: { aspectRatio: "3:2", imageSize: "2K" },
+    },
+    safetySettings,
+  });
+  return mediaFrom(result).bytes;
+}
+
+export async function generateStandaloneCoverIllustration(
+  title: string,
+  dedication: string,
+  brief: StoryBrief,
+  emotionalHook: string,
+) {
+  const result = await generateContent(serverEnv().GEMINI_IMAGE_MODEL, {
+    contents: [{
+      role: "user",
+      parts: [{
+        text: `${STYLE_MODIFIER}
+Create a dedicated premium personalized storybook cover.
+This is a direct cover illustration fallback because the reusable character sheet is
+not available yet. Still make the cover specific to the child and memory.
+
+Book title context: ${title}
+Dedication tone: ${dedication}
+Main child: ${brief.childName}, age ${brief.age}
+Family: ${brief.grownUps || "loving parent or guardian"}
+Character traits: ${brief.characterTraits || "joyful and curious"}
+Event: ${brief.event}
+Memorable detail: ${brief.memory}
+Emotional hook: ${emotionalHook}
+
+Cover requirements:
+- This is a cover, not page 1 interior art.
+- Strong thumbnail readability on a mobile library card.
+- Clear emotional invitation: family love, wonder, and the memorable detail.
+- One iconic focal composition with the main child instantly recognizable.
+- Leave generous clean space where HTML can render the title separately.
+- No text, logos, watermarks, or photorealism inside the image.`,
+      }],
     }],
     generationConfig: {
       responseModalities: ["IMAGE"],

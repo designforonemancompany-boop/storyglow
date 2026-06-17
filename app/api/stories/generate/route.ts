@@ -8,6 +8,8 @@ import {
   createCharacterReference,
   generateCoverIllustration,
   generatePageIllustration,
+  generateStandaloneCoverIllustration,
+  generateStandalonePageIllustration,
   generateStoryText,
 } from "@/lib/google-ai";
 import { renderNarrationAsset } from "@/lib/narration";
@@ -212,9 +214,7 @@ async function completeStoryGeneration({
       });
     }
 
-    if (!characterReference) {
-      generationReviewFlags.push("all_illustrations_retry_needed");
-    }
+    if (!characterReference) generationReviewFlags.push("standalone_illustration_fallback_used");
 
     const pageRecords: Array<Omit<StoryPageRecord, "id" | "story_id"> & { created_at: FirebaseFirestore.FieldValue }> =
       book.pages.map((page, index) => ({
@@ -301,93 +301,101 @@ async function completeStoryGeneration({
     await batch.commit();
     storyCommitted = true;
 
-    if (characterReference) {
-      try {
-        generationStage = "cover_generation";
-        const coverBytes = await generateCoverIllustration(
+    try {
+      generationStage = characterReference ? "cover_generation" : "standalone_cover_generation";
+      const coverBytes = characterReference
+        ? await generateCoverIllustration(
           characterReference,
           book.title,
           book.dedication,
           brief,
           book.pages[0]?.sceneDescription || brief.memory,
+        )
+        : await generateStandaloneCoverIllustration(
+          book.title,
+          book.dedication,
+          brief,
+          book.pages[0]?.sceneDescription || brief.memory,
         );
-        coverPath = `story-media/${userId}/${storyId}/cover.png`;
-        generationStage = "cover_upload";
-        await storageBucket().file(coverPath).save(coverBytes, {
-          resumable: false,
-          contentType: "image/png",
-          metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, familyCharacterId: familyCharacterId || "" } },
-        });
-        await Promise.all([
-          storyRef.set({
-            cover_path: coverPath,
-            media_generation_status: "generating",
-            updated_at: FieldValue.serverTimestamp(),
-          }, { merge: true }),
-          coverRef.set({
-            cover_path: coverPath,
-            quality_status: "ready_for_parent_review",
-            updated_at: FieldValue.serverTimestamp(),
-          }, { merge: true }),
-          snapshotRef.set({
-            cover_path: coverPath,
-          }, { merge: true }),
-        ]);
-      } catch (error) {
-        coverPath = null;
-        generationReviewFlags.push("cover_retry_needed");
-        console.warn("Cover generation failed; story will remain readable", {
-          storyId,
-          userId,
-          message: error instanceof Error ? error.message : "UNKNOWN",
-        });
-      }
+      coverPath = `story-media/${userId}/${storyId}/cover.png`;
+      generationStage = "cover_upload";
+      await storageBucket().file(coverPath).save(coverBytes, {
+        resumable: false,
+        contentType: "image/png",
+        metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, familyCharacterId: familyCharacterId || "" } },
+      });
+      await Promise.all([
+        storyRef.set({
+          cover_path: coverPath,
+          media_generation_status: "generating",
+          updated_at: FieldValue.serverTimestamp(),
+        }, { merge: true }),
+        coverRef.set({
+          cover_path: coverPath,
+          quality_status: characterReference ? "ready_for_parent_review" : "standalone_fallback",
+          updated_at: FieldValue.serverTimestamp(),
+        }, { merge: true }),
+        snapshotRef.set({
+          cover_path: coverPath,
+        }, { merge: true }),
+      ]);
+    } catch (error) {
+      coverPath = null;
+      generationReviewFlags.push("cover_retry_needed");
+      console.warn("Cover generation failed; story will remain readable", {
+        storyId,
+        userId,
+        message: error instanceof Error ? error.message : "UNKNOWN",
+      });
+    }
 
-      for (let index = 0; index < book.pages.length; index += 3) {
-        generationStage = `page_generation_${index + 1}`;
-        const group = book.pages.slice(index, index + 3);
-        const images = await Promise.allSettled(group.map((page, offset) =>
-          generatePageIllustration(characterReference, page.title, page.sceneDescription, index + offset + 1),
-        ));
-        for (let offset = 0; offset < group.length; offset += 1) {
-          const pageNumber = index + offset + 1;
-          const image = images[offset];
-          if (image.status === "fulfilled") {
-            const path = `story-media/${userId}/${storyId}/page-${pageNumber}.png`;
-            await storageBucket().file(path).save(image.value, {
-              resumable: false,
-              contentType: "image/png",
-              metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
-            });
-            await storyRef.collection("pages").doc(String(pageNumber).padStart(2, "0")).set({
-              illustration_path: path,
-            }, { merge: true });
-            if (!coverPath) {
-              coverPath = path;
-              await Promise.all([
-                storyRef.set({
-                  cover_path: coverPath,
-                  updated_at: FieldValue.serverTimestamp(),
-                }, { merge: true }),
-                coverRef.set({
-                  cover_path: coverPath,
-                  quality_status: "page_art_fallback",
-                  updated_at: FieldValue.serverTimestamp(),
-                }, { merge: true }),
-                snapshotRef.set({
-                  cover_path: coverPath,
-                }, { merge: true }),
-              ]);
-            }
-          } else {
-            generationReviewFlags.push(`page_${pageNumber}_illustration_retry_needed`);
-            console.warn("Page illustration failed; story page will remain readable", {
-              storyId,
-              userId,
-              pageNumber,
-              message: image.reason instanceof Error ? image.reason.message : "UNKNOWN",
-            });
+    for (let index = 0; index < book.pages.length; index += 3) {
+      generationStage = characterReference ? `page_generation_${index + 1}` : `standalone_page_generation_${index + 1}`;
+      const group = book.pages.slice(index, index + 3);
+      const images = await Promise.allSettled(group.map((page, offset) => {
+        const pageNumber = index + offset + 1;
+        return characterReference
+          ? generatePageIllustration(characterReference, page.title, page.sceneDescription, pageNumber)
+          : generateStandalonePageIllustration(brief, page.title, page.sceneDescription, pageNumber);
+      }));
+      for (let offset = 0; offset < group.length; offset += 1) {
+        const pageNumber = index + offset + 1;
+        const image = images[offset];
+        if (image.status === "fulfilled") {
+          const path = `story-media/${userId}/${storyId}/page-${pageNumber}.png`;
+          await storageBucket().file(path).save(image.value, {
+            resumable: false,
+            contentType: "image/png",
+            metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId } },
+          });
+          await storyRef.collection("pages").doc(String(pageNumber).padStart(2, "0")).set({
+            illustration_path: path,
+          }, { merge: true });
+          if (!coverPath) {
+            coverPath = path;
+            await Promise.all([
+              storyRef.set({
+                cover_path: coverPath,
+                updated_at: FieldValue.serverTimestamp(),
+              }, { merge: true }),
+              coverRef.set({
+                cover_path: coverPath,
+                quality_status: "page_art_fallback",
+                updated_at: FieldValue.serverTimestamp(),
+              }, { merge: true }),
+              snapshotRef.set({
+                cover_path: coverPath,
+              }, { merge: true }),
+            ]);
           }
+        } else {
+          generationReviewFlags.push(`page_${pageNumber}_illustration_retry_needed`);
+          console.warn("Page illustration failed; story page will remain readable", {
+            storyId,
+            userId,
+            pageNumber,
+            message: image.reason instanceof Error ? image.reason.message : "UNKNOWN",
+          });
         }
       }
     }

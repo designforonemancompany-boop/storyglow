@@ -37,13 +37,16 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(generation, /findReusableFamilyCharacter/);
   assert.match(generation, /character-media/);
   assert.match(generation, /generateCoverIllustration/);
+  assert.match(generation, /generateStandaloneCoverIllustration/);
+  assert.match(generation, /generateStandalonePageIllustration/);
   assert.match(generation, /storyCovers/);
   assert.match(generation, /storySnapshots/);
   assert.match(generation, /generationReviews/);
   assert.match(generation, /Promise\.allSettled/);
   assert.match(generation, /narration_warmup_retry_needed/);
   assert.match(generation, /character_reference_retry_needed/);
-  assert.match(generation, /all_illustrations_retry_needed/);
+  assert.match(generation, /standalone_illustration_fallback_used/);
+  assert.match(generation, /standalone_page_generation/);
   assert.match(generation, /firestore_text_commit/);
   assert.match(generation, /media_generation_status/);
   assert.doesNotMatch(generation, /generationStage = "moderation"/);
