@@ -6,7 +6,10 @@ import { ownedStory, storyPages } from "@/lib/firestore-data";
 import { firestore, storageBucket } from "@/lib/firebase/admin";
 import { generatePageIllustration, generateStandalonePageIllustration } from "@/lib/google-ai";
 
-const UpdateStorySchema = z.object({ archived: z.boolean() });
+const UpdateStorySchema = z.union([
+  z.object({ archived: z.boolean() }),
+  z.object({ action: z.literal("retry_illustrations") }),
+]);
 const StoryActionSchema = z.object({ action: z.literal("retry_illustrations") });
 
 async function retryMissingIllustrations(storyId: string, userId: string) {
@@ -107,22 +110,39 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const user = await requireApiUser();
     const parsed = UpdateStorySchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid story update" }, { status: 400 });
+    const update = parsed.data;
 
     const story = await ownedStory(user.uid, id);
     if (!story) return NextResponse.json({ error: "Story not found" }, { status: 404 });
-    if (!parsed.data.archived && story.status !== "archived") {
+    if ("action" in update && update.action === "retry_illustrations") {
+      if (!["ready", "archived"].includes(story.status)) {
+        return NextResponse.json({ error: "Story is not ready for illustration retry yet." }, { status: 409 });
+      }
+      await firestore().collection("stories").doc(id).set({
+        media_generation_status: "generating",
+        updated_at: FieldValue.serverTimestamp(),
+      }, { merge: true });
+      const result = await retryMissingIllustrations(id, user.uid);
+      return NextResponse.json({
+        retryStarted: true,
+        missingPages: result.missingPages,
+        retryFlags: result.retryFlags,
+      });
+    }
+    if (!("archived" in update)) return NextResponse.json({ error: "Invalid story update" }, { status: 400 });
+    if (!update.archived && story.status !== "archived") {
       return NextResponse.json({ error: "Story is not archived" }, { status: 409 });
     }
-    if (parsed.data.archived && story.status !== "ready") {
+    if (update.archived && story.status !== "ready") {
       return NextResponse.json({ error: "Only completed stories can be archived" }, { status: 409 });
     }
 
     await firestore().collection("stories").doc(id).update({
-      status: parsed.data.archived ? "archived" : "ready",
-      archived_at: parsed.data.archived ? FieldValue.serverTimestamp() : null,
+      status: update.archived ? "archived" : "ready",
+      archived_at: update.archived ? FieldValue.serverTimestamp() : null,
       updated_at: FieldValue.serverTimestamp(),
     });
-    return NextResponse.json({ archived: parsed.data.archived });
+    return NextResponse.json({ archived: update.archived });
   } catch (error) {
     const status = error instanceof Error && error.message === "AUTH_REQUIRED" ? 401 : 500;
     return NextResponse.json({ error: status === 401 ? "Sign in required" : "Could not update story" }, { status });

@@ -153,6 +153,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(versionRoute, /userFeedback/);
   assert.match(versionRoute, /Admin access required/);
   assert.match(storyApi, /retry_illustrations/);
+  assert.match(storyApi, /z\.union/);
   assert.match(storyApi, /generateStandalonePageIllustration/);
   assert.match(storyApi, /media_generation_status: "generating"/);
   assert.match(retryIllustrations, /generateStandalonePageIllustration/);

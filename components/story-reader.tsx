@@ -320,7 +320,7 @@ export function StoryReader({
     setIllustrationMessage("Restarting page illustration generation...");
     try {
       const response = await fetch(`/api/stories/${storyId}`, {
-        method: "POST",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "retry_illustrations" }),
       });
