@@ -189,7 +189,8 @@ browser clients.
 ## Admin beta operations
 
 Open `/admin` while signed in with an email listed in `STORYGLOW_ADMIN_EMAILS`
-to run beta operations before payment checkout is ready:
+to run beta operations before payment checkout is ready. If the hosting layer
+does not serve exact `/admin`, use the equivalent `/beta-admin` alias:
 
 - Review latest full feedback comments, timestamps, story IDs, cadence survey
   answers, proposed fixes, internal notes, and review status.
