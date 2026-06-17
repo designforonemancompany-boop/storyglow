@@ -319,7 +319,11 @@ export function StoryReader({
     setRetryingIllustrations(true);
     setIllustrationMessage("Restarting page illustration generation...");
     try {
-      const response = await fetch(`/api/stories/${storyId}/illustrations/retry`, { method: "POST" });
+      const response = await fetch(`/api/stories/${storyId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry_illustrations" }),
+      });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not restart illustrations.");
       setIllustrationMessage(`Retry started for ${result.missingPages || missingIllustrationCount} page illustrations. Refresh this story in a few minutes.`);
