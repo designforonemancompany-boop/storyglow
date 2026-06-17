@@ -21,11 +21,12 @@ export default async function SharedStoryPage({ params }: { params: Promise<{ to
     signStoryPages(await storyPages(story.id)),
     signMediaPath(story.data()?.cover_path || null),
   ]);
+  const missingIllustrationCount = pages.filter(page => !page.illustration_path).length;
   return <StoryReader storyId={story.id} title={story.data()?.title} pages={pages.map(page => ({
     page_number: page.page_number,
     title: page.title,
     body: page.body,
     illustration_url: page.illustration_url,
     narration_url: page.narration_url,
-  }))} cover={{ image_url: coverUrl, dedication: story.data()?.dedication }} sample />;
+  }))} cover={{ image_url: coverUrl, dedication: story.data()?.dedication }} pageArtStatus={story.data()?.media_generation_status || null} missingIllustrationCount={missingIllustrationCount} readOnly />;
 }

@@ -18,6 +18,8 @@ type ReaderCover = {
   dedication?: string;
 };
 
+type PageArtStatus = "generating" | "ready" | "needs_retry" | null;
+
 function buildInitialNarrationCache(pages: ReaderPage[]) {
   return pages.reduce<Record<number, string>>((cache, page) => {
     if (page.narration_url) cache[page.page_number] = page.narration_url;
@@ -25,11 +27,25 @@ function buildInitialNarrationCache(pages: ReaderPage[]) {
   }, {});
 }
 
-function FallbackIllustration({ kind }: { kind: "cover" | "page" }) {
+function FallbackIllustration({
+  kind,
+  coverUrl,
+  pageArtStatus,
+}: {
+  kind: "cover" | "page";
+  coverUrl?: string | null;
+  pageArtStatus?: PageArtStatus;
+}) {
   return (
     <div className="fallback-illustration" role="img" aria-label={`Temporary ${kind} illustration fallback`}>
-      <Image src="/assets/birthday-story-scenes.png" fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
-      <span>Temporary illustration fallback</span>
+      {coverUrl ? (
+        <Image src={coverUrl} fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
+      ) : (
+        <div className="storybook-placeholder" aria-hidden>
+          <span>SG</span>
+        </div>
+      )}
+      <span>{pageArtStatus === "needs_retry" ? "Illustration needs retry" : "Illustration is being painted"}</span>
     </div>
   );
 }
@@ -39,19 +55,25 @@ export function StoryReader({
   title,
   pages,
   sample = false,
+  readOnly = false,
   initialPage = 1,
   initialPosition = 0,
   initialRate = 1,
   cover,
+  pageArtStatus = null,
+  missingIllustrationCount = 0,
 }: {
   storyId: string;
   title: string;
   pages: ReaderPage[];
   sample?: boolean;
+  readOnly?: boolean;
   initialPage?: number;
   initialPosition?: number;
   initialRate?: number;
   cover?: ReaderCover;
+  pageArtStatus?: PageArtStatus;
+  missingIllustrationCount?: number;
 }) {
   const initialPageIndex = Math.max(0, Math.min(pages.length - 1, initialPage - 1));
   const [showCover, setShowCover] = useState(Boolean(cover?.image_url && initialPage <= 1 && initialPosition === 0));
@@ -63,6 +85,8 @@ export function StoryReader({
   const [busy, setBusy] = useState(false);
   const [audioPrepared, setAudioPrepared] = useState(false);
   const [audioError, setAudioError] = useState("");
+  const [illustrationMessage, setIllustrationMessage] = useState("");
+  const [retryingIllustrations, setRetryingIllustrations] = useState(false);
   const [sleepTimerEndsAt, setSleepTimerEndsAt] = useState<number | null>(null);
   const [sleepTimerLabel, setSleepTimerLabel] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -70,13 +94,14 @@ export function StoryReader({
   const countdownRef = useRef<number | null>(null);
   const continuePlaybackRef = useRef(false);
   const page = pages[pageIndex];
+  const progressDisabled = sample || readOnly;
 
   function rememberNarration(pageNumber: number, url: string) {
     setNarrationCache(current => current[pageNumber] === url ? current : { ...current, [pageNumber]: url });
   }
 
   async function saveProgress(audioPositionMs: number) {
-    if (sample || showCover) return;
+    if (progressDisabled || showCover) return;
     await fetch("/api/progress", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -99,14 +124,14 @@ export function StoryReader({
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
     }
-    if (!sample && !showCover) {
+    if (!progressDisabled && !showCover) {
       void saveProgress(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.page_number, page.narration_url, rate, sample, storyId, showCover]);
 
   useEffect(() => {
-    if (sample || showCover) return;
+    if (progressDisabled || showCover) return;
     let cancelled = false;
 
     async function prefetchNarration(pageNumber: number) {
@@ -150,7 +175,7 @@ export function StoryReader({
     return () => {
       cancelled = true;
     };
-  }, [audioUrl, narrationCache, page.narration_url, page.page_number, pageIndex, pages, sample, showCover, storyId]);
+  }, [audioUrl, narrationCache, page.narration_url, page.page_number, pageIndex, pages, progressDisabled, showCover, storyId]);
 
   useEffect(() => {
     if (!sleepTimerEndsAt) {
@@ -194,7 +219,7 @@ export function StoryReader({
       if (preparedUrl !== audioUrl) setAudioUrl(preparedUrl);
       return { url: preparedUrl, prepared: true };
     }
-    if (sample) return { url: null, prepared: false };
+    if (sample || readOnly) return { url: null, prepared: false };
     setBusy(true);
     setAudioError("");
     try {
@@ -232,7 +257,7 @@ export function StoryReader({
       return;
     }
     const { url, prepared } = audio;
-    if (!url && sample) {
+    if (!url && (sample || readOnly)) {
       const utterance = new SpeechSynthesisUtterance(`${page.title}. ${page.body}`);
       utterance.rate = rate;
       utterance.onend = () => setPlaying(false);
@@ -257,7 +282,7 @@ export function StoryReader({
   }
 
   useEffect(() => {
-    if (!continuePlaybackRef.current || sample || showCover) return;
+    if (!continuePlaybackRef.current || progressDisabled || showCover) return;
     if (pageIndex === pages.length - 1) {
       continuePlaybackRef.current = false;
       return;
@@ -267,7 +292,7 @@ export function StoryReader({
   }, [pageIndex, showCover]);
 
   async function persistPosition() {
-    if (sample || !audioRef.current) return;
+    if (progressDisabled || !audioRef.current) return;
     await saveProgress(Math.floor(audioRef.current.currentTime * 1000));
   }
 
@@ -290,18 +315,35 @@ export function StoryReader({
     setSleepTimerEndsAt(null);
   }
 
+  async function retryIllustrations() {
+    setRetryingIllustrations(true);
+    setIllustrationMessage("Restarting page illustration generation...");
+    try {
+      const response = await fetch(`/api/stories/${storyId}/illustrations/retry`, { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not restart illustrations.");
+      setIllustrationMessage(`Retry started for ${result.missingPages || missingIllustrationCount} page illustrations. Refresh this story in a few minutes.`);
+    } catch (error) {
+      setIllustrationMessage(error instanceof Error ? error.message : "Could not restart illustrations.");
+    } finally {
+      setRetryingIllustrations(false);
+    }
+  }
+
   return (
     <main className="reader-shell">
       <div className="reader-topbar">
-        <Link className="brand" href={sample ? "/" : "/library"}>
+        <Link className="brand" href={sample || readOnly ? "/" : "/library"}>
           <span className="brand-mark" aria-hidden>SG</span>
           StoryGlow
         </Link>
         <div>
-          <span className="status-pill">{sample ? "Sample story" : "Private story"}</span>
+          <span className="status-pill">{sample ? "Sample story" : readOnly ? "Shared story" : "Private story"}</span>
           <h1>{title}</h1>
         </div>
         {sample ? (
+          <Link className="button button-small" href="/create">Create yours</Link>
+        ) : readOnly ? (
           <Link className="button button-small" href="/create">Create yours</Link>
         ) : (
           <div className="reader-top-actions">
@@ -318,7 +360,7 @@ export function StoryReader({
             ) : sample ? (
               <Image src="/assets/birthday-story-scenes.png" fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
             ) : (
-              <FallbackIllustration kind="cover" />
+              <FallbackIllustration kind="cover" pageArtStatus={pageArtStatus} />
             )}
           </div>
           <article className="reader-copy cover-copy">
@@ -336,7 +378,7 @@ export function StoryReader({
             ) : sample ? (
               <Image src="/assets/birthday-story-scenes.png" fill sizes="(max-width:850px) 100vw, 65vw" alt="" unoptimized />
             ) : (
-              <FallbackIllustration kind="page" />
+              <FallbackIllustration kind="page" coverUrl={cover?.image_url} pageArtStatus={pageArtStatus} />
             )}
           </div>
           <article className="reader-copy">
@@ -347,6 +389,16 @@ export function StoryReader({
         </div>
       )}
       <div className="reader-bottom">
+        {!sample && missingIllustrationCount > 0 ? (
+          <div className="illustration-status" role="status">
+            <strong>{missingIllustrationCount} page illustration{missingIllustrationCount === 1 ? "" : "s"} pending.</strong>
+            <span>{pageArtStatus === "needs_retry" ? "The story text and cover are ready, but interior art needs another generation pass." : "Interior art is still being prepared."}</span>
+            <button className="button button-small" type="button" disabled={retryingIllustrations} onClick={() => void retryIllustrations()}>
+              {retryingIllustrations ? "Starting retry..." : "Retry page illustrations"}
+            </button>
+            {illustrationMessage ? <small>{illustrationMessage}</small> : null}
+          </div>
+        ) : null}
         <button
           className="round-button"
           aria-label={showCover ? "Cover displayed" : "Previous page"}

@@ -33,6 +33,7 @@ export type StoryRecord = {
   brief: StoryBrief;
   cover_path: string | null;
   cover_prompt_version?: string | null;
+  media_generation_status?: "generating" | "ready" | "needs_retry" | null;
   family_character_id?: string | null;
   character_reference_path?: string | null;
   snapshot_id?: string | null;

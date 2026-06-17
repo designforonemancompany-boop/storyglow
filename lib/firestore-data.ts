@@ -22,6 +22,7 @@ export function storyFromDoc(doc: QueryDocumentSnapshot<DocumentData> | Firebase
     brief: data.brief,
     cover_path: data.cover_path || null,
     cover_prompt_version: data.cover_prompt_version || null,
+    media_generation_status: data.media_generation_status || null,
     family_character_id: data.family_character_id || null,
     character_reference_path: data.character_reference_path || null,
     snapshot_id: data.snapshot_id || null,

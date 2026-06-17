@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library, versionRoute, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library, versionRoute, retryIllustrations, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -23,6 +23,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("app/settings/page.tsx"),
     read("app/library/page.tsx"),
     read("app/api/version/route.ts"),
+    read("app/api/stories/[id]/illustrations/retry/route.ts"),
+    read("app/share/[token]/page.tsx"),
     read("app/admin/feedback/page.tsx"),
     read("app/feedback-admin/page.tsx"),
     read("app/beta-admin/page.tsx"),
@@ -84,7 +86,11 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(reader, /buildInitialNarrationCache/);
   assert.match(reader, /rememberNarration/);
   assert.match(reader, /sample \?/);
-  assert.match(reader, /Temporary illustration fallback/);
+  assert.match(reader, /readOnly \?/);
+  assert.match(reader, /Illustration needs retry/);
+  assert.match(reader, /Illustration is being painted/);
+  assert.match(reader, /Retry page illustrations/);
+  assert.match(reader, /coverUrl/);
   assert.match(reader, /\/api\/progress/);
   assert.match(feedback, /rewardCredits = 5/);
   assert.match(feedback, /rewardCredits = 1/);
@@ -145,6 +151,11 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(versionRoute, /feedbackExport/);
   assert.match(versionRoute, /userFeedback/);
   assert.match(versionRoute, /Admin access required/);
+  assert.match(retryIllustrations, /generateStandalonePageIllustration/);
+  assert.match(retryIllustrations, /media_generation_status: "generating"/);
+  assert.match(retryIllustrations, /missingPages/);
+  assert.match(sharePage, /readOnly/);
+  assert.doesNotMatch(sharePage, / sample \/>/);
   assert.doesNotMatch(firebaseConfig, /GOOGLE_GENERATIVE_AI_API_KEY|STRIPE_SECRET_KEY/);
 });
 
