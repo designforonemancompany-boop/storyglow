@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { getOptionalUser, requireUser } from "@/lib/auth";
 
 function configuredAdminEmails() {
   return (process.env.STORYGLOW_ADMIN_EMAILS || process.env.ADMIN_EMAILS || "")
@@ -17,7 +17,15 @@ export function isAdminEmail(email: string | undefined, verified = false) {
 export async function requireAdminUser() {
   const user = await requireUser();
   if (!isAdminEmail(user.email, user.email_verified)) {
-    redirect("/library");
+    redirect("/admin/access-denied");
+  }
+  return user;
+}
+
+export async function requireAdminApiUser() {
+  const user = await getOptionalUser();
+  if (!user || !isAdminEmail(user.email, Boolean(user.email_verified))) {
+    throw new Error("ADMIN_REQUIRED");
   }
   return user;
 }

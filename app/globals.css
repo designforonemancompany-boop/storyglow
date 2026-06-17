@@ -239,6 +239,18 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
 .feedback-meta dd { margin: 5px 0 0; overflow-wrap: anywhere; font-weight: 800; }
 .feedback-solution { margin-top: 18px; padding: 16px; background: #fff1bf; border-radius: 14px; }
 .feedback-solution p { margin: 8px 0 0; }
+.admin-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 28px 0; padding: 16px 18px; background: #e7f0ef; border-radius: 16px; font-weight: 800; }
+.admin-grid { display: grid; grid-template-columns: minmax(280px, 360px) 1fr; gap: 26px; align-items: start; margin-top: 32px; }
+.admin-panel { padding: 26px; background: white; border-radius: 20px; box-shadow: 0 12px 38px rgba(23,52,74,.1); }
+.admin-feedback-wide { min-width: 0; }
+.admin-form, .review-form { display: grid; gap: 14px; }
+.admin-form label, .review-form label { font-size: .8rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.admin-form textarea, .review-form textarea { min-height: 110px; text-transform: none; letter-spacing: 0; font-weight: 600; }
+.admin-user-card { display: grid; gap: 8px; margin-top: 22px; padding: 18px; background: var(--paper); border-radius: 16px; }
+.admin-user-card span { color: var(--ink-soft); }
+.admin-message { margin: 18px 0 0; padding: 12px 14px; background: #fff1bf; border-radius: 12px; font-weight: 800; }
+.review-form { margin-top: 20px; padding-top: 18px; border-top: 1px solid #e4d9c8; }
+.review-form select { margin-top: 8px; }
 
 @media (max-width: 850px) {
   html, body { max-width: 100%; overflow-x: hidden; }
@@ -288,6 +300,9 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
   .feedback-card { padding: 20px; }
   .feedback-card-top { flex-direction: column; }
   .feedback-card-top time { white-space: normal; }
+  .admin-toolbar, .admin-grid { grid-template-columns: 1fr; }
+  .admin-toolbar { align-items: flex-start; flex-direction: column; }
+  .admin-panel { padding: 20px; }
   .order-list article { grid-template-columns: 1fr; gap: 8px; }
   .order-success { padding: 38px 22px; }
 }

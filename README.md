@@ -23,6 +23,7 @@ with Next.js App Router, Firebase, and Google AI Studio.
 - Global bug/idea feedback and bedtime-audio cadence survey
 - Transactional alpha rewards: 5 credits for the first feedback from the first
   20 testers, then 1 credit after feedback on a second distinct story
+- Founder/admin dashboard for feedback review and manual beta credit grants
 - Marketing consent history kept separate from required service communication
 
 ## Architecture
@@ -76,7 +77,8 @@ PHYSICAL_BOOK_SHIPPING_CENTS=800
 server-only secrets. Never prefix them with `NEXT_PUBLIC_`.
 
 `STORYGLOW_ADMIN_EMAILS` is a comma-separated list of verified Firebase Auth
-emails allowed to open the admin feedback inbox at `/admin/feedback`.
+emails allowed to open the admin dashboard at `/admin`. Admins use the same
+magic-link or Google sign-in flow as parents; there is no separate password.
 
 ## Physical-book checkout
 
@@ -184,13 +186,24 @@ server-to-server with a Bearer token from `FEEDBACK_WEBHOOK_SECRET`. Credits are
 assigned atomically inside a Firestore transaction and cannot be changed by
 browser clients.
 
-## Admin feedback inbox
+## Admin beta operations
 
-Open `/feedback-admin` while signed in with an email listed in
-`STORYGLOW_ADMIN_EMAILS` to view the latest full feedback comments, timestamps,
-story IDs, cadence survey answers, and proposed review actions. The page reads
-with the server-side Firebase Admin SDK; Firestore browser reads for
-`feedbackReviews` remain denied.
+Open `/admin` while signed in with an email listed in `STORYGLOW_ADMIN_EMAILS`
+to run beta operations before payment checkout is ready:
+
+- Review latest full feedback comments, timestamps, story IDs, cadence survey
+  answers, proposed fixes, internal notes, and review status.
+- Search parents by email or UID and grant or subtract premium story credits.
+- Require an admin reason for every manual credit adjustment.
+- Store every manual adjustment in the server-only `creditLedger` collection
+  with admin email, delta, previous balance, new balance, reason, and source
+  `manual_beta_admin`.
+
+Firestore browser reads and writes for `feedbackReviews` and `creditLedger`
+remain denied. Admin actions run through protected Next.js server routes using
+the Firebase Admin SDK.
+
+Open `/feedback-admin` for the legacy read-only feedback inbox.
 
 For JSON export, call `/api/version?feedback=1&limit=20` while signed in as an
 allowlisted admin, or with `Authorization: Bearer FEEDBACK_WEBHOOK_SECRET`.

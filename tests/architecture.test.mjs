@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library, versionRoute, adminFeedback, adminAlias, adminFeedbackApi, adminAccess, appHosting] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, settings, library, versionRoute, adminFeedback, adminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -26,7 +26,13 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("app/admin/feedback/page.tsx"),
     read("app/feedback-admin/page.tsx"),
     read("app/api/admin/feedback/route.ts"),
+    read("app/api/admin/feedback/review/route.ts"),
+    read("app/api/admin/users/route.ts"),
+    read("app/api/admin/credits/route.ts"),
     read("lib/admin-access.ts"),
+    read("app/admin/page.tsx"),
+    read("app/admin/access-denied/page.tsx"),
+    read("components/admin-dashboard.tsx"),
     read("apphosting.yaml"),
   ]);
 
@@ -88,9 +94,17 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(feedbackReview, /proposed_solution/);
   assert.match(feedbackReview, /needs_review/);
   assert.match(firestoreRules, /match \/feedbackReviews/);
+  assert.match(firestoreRules, /match \/creditLedger/);
   assert.match(firestoreRules, /allow read, write: if false/);
   assert.match(adminAccess, /STORYGLOW_ADMIN_EMAILS/);
   assert.match(adminAccess, /email_verified/);
+  assert.match(adminAccess, /requireAdminApiUser/);
+  assert.match(adminAccess, /\/admin\/access-denied/);
+  assert.match(adminDenied, /Admin access not enabled/);
+  assert.match(adminPage, /StoryGlow Beta Control Room/);
+  assert.match(adminDashboard, /Apply credit change/);
+  assert.match(adminDashboard, /Save review/);
+  assert.match(adminDashboard, /storybookCredits/);
   assert.match(adminFeedback, /Feedback Inbox/);
   assert.match(adminFeedback, /userFeedback/);
   assert.match(adminFeedback, /feedbackReviews/);
@@ -100,6 +114,13 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(adminFeedbackApi, /userFeedback/);
   assert.match(adminFeedbackApi, /feedbackReviews/);
   assert.match(adminFeedbackApi, /Admin access required/);
+  assert.match(adminReviewApi, /feedbackReviews/);
+  assert.match(adminReviewApi, /planned/);
+  assert.match(adminReviewApi, /proposed_solution/);
+  assert.match(adminUsersApi, /getUserByEmail/);
+  assert.match(adminCreditsApi, /creditLedger/);
+  assert.match(adminCreditsApi, /manual_beta_admin/);
+  assert.match(adminCreditsApi, /storybookCredits/);
   assert.match(appHosting, /STORYGLOW_ADMIN_EMAILS/);
   assert.match(auth, /createSessionCookie/);
   assert.match(auth, /email_verified/);

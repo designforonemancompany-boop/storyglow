@@ -39,15 +39,24 @@ export async function GET(request: Request) {
   const reviews = await Promise.all(snapshot.docs.map(doc =>
     firestore().collection("feedbackReviews").doc(doc.id).get().catch(() => null),
   ));
+  const profiles = await Promise.all(snapshot.docs.map(doc => {
+    const userId = doc.data().user_id;
+    return userId
+      ? firestore().collection("profiles").doc(String(userId)).get().catch(() => null)
+      : Promise.resolve(null);
+  }));
 
   return NextResponse.json({
     count: snapshot.size,
     feedback: snapshot.docs.map((doc, index) => {
       const data = doc.data();
       const review = reviews[index]?.exists ? reviews[index]?.data() : null;
+      const profile = profiles[index]?.exists ? profiles[index]?.data() : null;
       return {
         id: doc.id,
         created_at: iso(data.created_at),
+        user_id: data.user_id || null,
+        user_email: profile?.email || null,
         kind: data.kind || null,
         audio_cadence: data.audio_cadence || null,
         story_id: data.story_id || null,
