@@ -7,64 +7,72 @@ export type CharacterPreset = {
   ageBand?: "toddler" | "preschool" | "early_school" | "adult";
   description: string;
   palette: string;
+  iconClass: string;
 };
 
 export const CHARACTER_PRESETS: CharacterPreset[] = [
   {
     id: "asian-daughter-toddler-cozy",
     role: "daughter",
-    label: "Daughter · toddler",
+    label: "Daughter - toddler",
     ageBand: "toddler",
     description: "Asian toddler daughter, soft round cheeks, short bob or tiny tied hair, cozy pajamas, curious gentle expression.",
     palette: "raspberry coral, cream, soft marigold",
+    iconClass: "daughter toddler coral",
   },
   {
     id: "asian-daughter-preschool-birthday",
     role: "daughter",
-    label: "Daughter · birthday",
+    label: "Daughter - birthday",
     ageBand: "preschool",
     description: "Asian preschool daughter, expressive bright eyes, shoulder-length hair, playful birthday outfit, sweet confident smile.",
     palette: "sky blue, raspberry coral, parchment white",
+    iconClass: "daughter preschool sky",
   },
   {
     id: "asian-son-toddler-cozy",
     role: "son",
-    label: "Son · toddler",
+    label: "Son - toddler",
     ageBand: "toddler",
     description: "Asian toddler son, soft rounded face, neat short hair, cozy bedtime clothes, lively curious posture.",
     palette: "midnight navy, sky blue, cream",
+    iconClass: "son toddler navy",
   },
   {
     id: "asian-son-preschool-adventure",
     role: "son",
-    label: "Son · adventure",
+    label: "Son - adventure",
     ageBand: "preschool",
     description: "Asian preschool son, warm grin, tidy side-swept hair, casual storybook outfit, playful explorer energy.",
     palette: "leaf green, marigold, sky blue",
+    iconClass: "son preschool leaf",
   },
   {
     id: "asian-mom-warm-cardigan",
     role: "mom",
-    label: "Mom · warm cardigan",
+    label: "Mom - warm cardigan",
     ageBand: "adult",
     description: "Asian mother, kind expressive eyes, natural shoulder-length hair, soft cardigan, calm bedtime warmth.",
     palette: "cream, leaf green, raspberry coral",
+    iconClass: "mom adult leaf",
   },
   {
     id: "asian-dad-cozy-sweater",
     role: "dad",
-    label: "Dad · cozy sweater",
+    label: "Dad - cozy sweater",
     ageBand: "adult",
     description: "Asian father, gentle smile, neat short hair, cozy sweater, protective and playful family presence.",
     palette: "midnight navy, marigold, parchment white",
+    iconClass: "dad adult navy",
   },
   {
     id: "asian-sibling-playful",
     role: "sibling",
-    label: "Sibling · playful",
+    label: "Sibling - playful",
     ageBand: "early_school",
     description: "Asian sibling, slightly older child, bright friendly expression, casual outfit, caring playful energy.",
     palette: "sky blue, leaf green, cream",
+    iconClass: "sibling early-school gold",
   },
 ];
 

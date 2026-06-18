@@ -16,7 +16,7 @@ const serverSchema = publicSchema.extend({
   FIREBASE_STORAGE_BUCKET: z.string().min(3),
   GOOGLE_GENERATIVE_AI_API_KEY: z.string().min(20),
   GEMINI_TEXT_MODEL: z.string().default("gemini-2.5-flash"),
-  GEMINI_IMAGE_MODEL: z.string().default("gemini-3.1-flash-image-preview"),
+  GEMINI_IMAGE_MODEL: z.string().default("gemini-2.5-flash-image"),
   GEMINI_TTS_MODEL: z.string().default("gemini-2.5-flash-preview-tts"),
   FEEDBACK_WEBHOOK_URL: z.string().url().optional(),
   FEEDBACK_WEBHOOK_SECRET: z.string().min(16).optional(),

@@ -73,7 +73,9 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.doesNotMatch(generation, /generationStage = "moderation"/);
   assert.doesNotMatch(generation, /moderateStoryBrief/);
   assert.doesNotMatch(generation, /cover_path: pageRecords\[0\]\?\.illustration_path/);
-  assert.match(googleAi, /gemini-3\.1-flash-image-preview|GEMINI_IMAGE_MODEL/);
+  assert.match(env, /GEMINI_IMAGE_MODEL=gemini-2\.5-flash-image/);
+  assert.match(appHosting, /gemini-2\.5-flash-image/);
+  assert.match(googleAi, /GEMINI_IMAGE_MODEL/);
   assert.match(googleAi, /Warm, whimsical, premium custom children's-book illustration/);
   assert.match(googleAi, /front, side, and back full-body views/);
   assert.match(googleAi, /face closeups, hair\/back-of-head detail/);
@@ -97,9 +99,11 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(characterPresets, /asian-mom-warm-cardigan/);
   assert.match(characterPresets, /asian-dad-cozy-sweater/);
   assert.match(characterPresets, /CHARACTER_STYLE_VARIANTS/);
+  assert.match(characterPresets, /iconClass/);
   assert.match(createForm, /selectedCharacterPresetIds/);
   assert.match(createForm, /Or choose illustrated family characters/);
   assert.match(createForm, /CHARACTER_PRESETS/);
+  assert.match(createForm, /preset-avatar/);
   assert.match(reader, /Sleep timer/);
   assert.match(reader, /Story cover/);
   assert.match(reader, /Open the book/);

@@ -37,7 +37,7 @@ Firebase App Hosting / Next.js
   ├─ Cloud Storage: temporary private photos and generated private media
   └─ Google AI Studio
       ├─ gemini-2.5-flash structured story writing and safety screening
-      ├─ gemini-3.1-flash-image-preview character and page illustration
+      ├─ gemini-2.5-flash-image character and page illustration
       └─ gemini-2.5-flash-preview-tts bedtime narration
 ```
 
@@ -62,7 +62,7 @@ FIREBASE_STORAGE_BUCKET=
 GOOGLE_GENERATIVE_AI_API_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 GEMINI_TEXT_MODEL=gemini-2.5-flash
-GEMINI_IMAGE_MODEL=gemini-3.1-flash-image-preview
+GEMINI_IMAGE_MODEL=gemini-2.5-flash-image
 GEMINI_TTS_MODEL=gemini-2.5-flash-preview-tts
 FEEDBACK_WEBHOOK_URL=
 FEEDBACK_WEBHOOK_SECRET=

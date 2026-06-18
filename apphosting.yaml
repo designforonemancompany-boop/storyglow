@@ -40,7 +40,7 @@ env:
     value: gemini-2.5-flash
     availability: [RUNTIME]
   - variable: GEMINI_IMAGE_MODEL
-    value: gemini-3.1-flash-image-preview
+    value: gemini-2.5-flash-image
     availability: [RUNTIME]
   - variable: GEMINI_TTS_MODEL
     value: gemini-2.5-flash-preview-tts

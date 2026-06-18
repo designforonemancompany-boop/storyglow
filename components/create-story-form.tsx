@@ -158,14 +158,20 @@ export function CreateStoryForm({
                   <input
                     type="checkbox"
                     checked={checked}
+                    aria-label={preset.label}
                     onChange={event => setSelectedPresetIds(current =>
                       event.target.checked
                         ? [...new Set([...current, preset.id])]
                         : current.filter(id => id !== preset.id),
                     )}
                   />
-                  <span>{preset.label}</span>
-                  <small>{preset.description}</small>
+                  <span className={`preset-avatar ${preset.iconClass}`} aria-hidden="true">
+                    <i className="avatar-hair" />
+                    <i className="avatar-head" />
+                    <i className="avatar-body" />
+                  </span>
+                  <span className="preset-card-title">{preset.label}</span>
+                  <small>{preset.palette}</small>
                 </label>
               );
             })}
