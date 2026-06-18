@@ -63,6 +63,8 @@ type GeminiResponse = {
   error?: { message?: string };
 };
 
+type StoryBook = z.infer<typeof StorySchema>;
+
 async function generateContent(model: string, payload: object) {
   const { GOOGLE_GENERATIVE_AI_API_KEY } = serverEnv();
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(GOOGLE_GENERATIVE_AI_API_KEY)}`;
@@ -104,7 +106,13 @@ async function generateContent(model: string, payload: object) {
 }
 
 function textFrom(result: GeminiResponse) {
-  return result.candidates?.[0]?.content?.parts?.map(part => part.text || "").join("").trim() || "";
+  const candidate = result.candidates?.[0];
+  const text = candidate?.content?.parts?.map(part => part.text || "").join("").trim() || "";
+  if (!text) {
+    const reason = candidate?.finishReason || result.promptFeedback?.blockReason || "EMPTY_TEXT";
+    throw new Error(`GEMINI_TEXT_EMPTY_${reason}`);
+  }
+  return text;
 }
 
 function mediaFrom(result: GeminiResponse) {
@@ -152,9 +160,25 @@ export async function moderateStoryBrief(brief: StoryBrief) {
 }
 
 export async function generateStoryText(brief: StoryBrief) {
-  const result = await generateContent(serverEnv().GEMINI_TEXT_MODEL, {
+  const attempts = [
+    {
+      temperature: 0.8,
+      system: "You are StoryGlow's senior children's-book writer. Create emotionally specific, developmentally appropriate bedtime books while following child-safety requirements exactly.",
+      extra: "",
+    },
+    {
+      temperature: 0.35,
+      system: "You write safe JSON-only children's bedtime books. Return only valid JSON matching the requested schema. Do not include markdown or commentary.",
+      extra: "\nIf any detail feels sensitive, soften it into a safe family memory instead of refusing. Return complete JSON with exactly 10 pages.",
+    },
+  ];
+  let lastError: unknown;
+
+  for (const attempt of attempts) {
+    try {
+      const result = await generateContent(serverEnv().GEMINI_TEXT_MODEL, {
     systemInstruction: {
-      parts: [{ text: "You are StoryGlow's senior children's-book writer. Create emotionally specific, developmentally appropriate bedtime books while following child-safety requirements exactly." }],
+      parts: [{ text: attempt.system }],
     },
     contents: [{
       role: "user",
@@ -181,17 +205,109 @@ Requirements:
 - Finish calmly with the child safe, loved, and ready for sleep.
 - Use a clear emotional arc: cozy setup, playful discovery, heartfelt family reflection, then a calm bedtime landing.
 - Give every page a concrete illustration scene with the same characters and clothing.
-- The main child must always read like the same child from page to page, and adult traits must never be transferred onto the child.`,
+- The main child must always read like the same child from page to page, and adult traits must never be transferred onto the child.${attempt.extra}`,
       }],
     }],
     generationConfig: {
       responseMimeType: "application/json",
       responseJsonSchema: STORY_JSON_SCHEMA,
-      temperature: 0.8,
+      temperature: attempt.temperature,
     },
     safetySettings,
   });
-  return StorySchema.parse(JSON.parse(textFrom(result)));
+      return StorySchema.parse(JSON.parse(textFrom(result)));
+    } catch (error) {
+      if (error instanceof Error && error.message === "STORY_INPUT_BLOCKED") throw error;
+      lastError = error;
+      console.warn("Story text generation attempt failed", {
+        message: error instanceof Error ? error.message : "UNKNOWN",
+      });
+    }
+  }
+
+  console.warn("Story text generation fell back to deterministic local book", {
+    message: lastError instanceof Error ? lastError.message : "UNKNOWN",
+  });
+  return fallbackStoryText(brief);
+}
+
+function pronouns(gender: StoryBrief["gender"]) {
+  if (gender === "boy") return { subject: "he", object: "him", possessive: "his" };
+  if (gender === "girl") return { subject: "she", object: "her", possessive: "her" };
+  return { subject: "they", object: "them", possessive: "their" };
+}
+
+function sentence(value: string, fallback: string) {
+  const trimmed = value.trim().replace(/\s+/g, " ");
+  if (!trimmed) return fallback;
+  return trimmed.endsWith(".") || trimmed.endsWith("!") || trimmed.endsWith("?") ? trimmed : `${trimmed}.`;
+}
+
+function fallbackStoryText(brief: StoryBrief): StoryBook {
+  const p = pronouns(brief.gender);
+  const grownUps = brief.grownUps.trim() || "the people who loved them most";
+  const traits = sentence(brief.characterTraits, "gentle, curious, and full of small bright surprises.");
+  const event = sentence(brief.event, "A small family moment became a memory worth keeping.");
+  const memory = sentence(brief.memory, "There was one tiny detail everyone wanted to remember forever.");
+  const child = brief.childName;
+  const agePhrase = `${brief.age}-year-old`;
+
+  return StorySchema.parse({
+    title: `${child}'s Little Glow`,
+    dedication: `For ${child}, whose everyday moments already feel like keepsakes to ${grownUps}.`,
+    pages: [
+      {
+        title: "Morning Spark",
+        text: `${child} woke as the ${agePhrase} star of a very ordinary day that did not feel ordinary at all. ${grownUps} noticed the little stretch, the sleepy smile, and the way ${p.possessive} whole face seemed to say, I am growing.`,
+        sceneDescription: `Cozy morning bedroom scene with ${child}, age ${brief.age}, waking happily while ${grownUps} watch with tender pride.`,
+      },
+      {
+        title: "A Tiny Plan",
+        text: `${traits} That was one reason every room felt more interesting when ${child} arrived. A cushion became a mountain, a hallway became a parade, and the day began to gather itself around ${p.object}.`,
+        sceneDescription: `${child} exploring a warm family room with playful confidence, soft toys and cozy home details around them.`,
+      },
+      {
+        title: "The Big Moment",
+        text: `${event} ${child} did not know that grown-up hearts could grow so full from watching one small person try, smile, wobble, and try again. But ${grownUps} knew. They saw every brave little bit.`,
+        sceneDescription: `The family event as a warm storybook scene, centered on ${child}, with parents nearby and a celebratory but calm mood.`,
+      },
+      {
+        title: "The Special Detail",
+        text: `${memory} It was the kind of detail that might look small to the world, but inside the family it shone like a little lantern. Everyone smiled because it was completely, wonderfully ${child}.`,
+        sceneDescription: `Close family scene highlighting the memorable object or action from the parent's memory, with ${child} proud and delighted.`,
+      },
+      {
+        title: "Growing Up",
+        text: `${grownUps} remembered when ${child} was smaller, when fingers curled tightly and words came out like music only the family understood. Now ${p.subject} had new ideas, new expressions, and new ways to say, Look at me.`,
+        sceneDescription: `Tender visual contrast of baby memories and present-day ${child}, shown as soft picture-book memory shapes around the family.`,
+      },
+      {
+        title: "Held Close",
+        text: `Even when ${child} wanted to do things independently, love stayed close by. It waited in open arms, in patient voices, in the quiet help that made big feelings feel smaller and safe again.`,
+        sceneDescription: `${child} near a parent or guardian in a warm home setting, feeling supported while still independent.`,
+      },
+      {
+        title: "A Family Smile",
+        text: `The best part of the day was not that everything was perfect. The best part was that it belonged to them. The giggles, the pauses, the funny little detail, and the proud faces all became one family smile.`,
+        sceneDescription: `Family group smiling together in a cozy premium watercolor scene, with ${child} as the clear focal point.`,
+      },
+      {
+        title: "Soft Evening",
+        text: `When evening came, the busy colors of the day softened. ${child} carried the memory with ${p.object}, not in a pocket, but somewhere warmer: in the safe place where loved stories settle before sleep.`,
+        sceneDescription: `Evening scene with warm lamplight, ${child} winding down while the family memory glows subtly around them.`,
+      },
+      {
+        title: "One More Look",
+        text: `${grownUps} looked at ${child} and saw the baby ${p.subject} had been, the child ${p.subject} was now, and the wonderful person still unfolding. Their hearts whispered the same thing at once: we are so lucky to watch you grow.`,
+        sceneDescription: `Parents watching ${child} with loving pride, bedtime colors, soft paper texture, emotional but peaceful composition.`,
+      },
+      {
+        title: "Goodnight Glow",
+        text: `At bedtime, ${child} was tucked into quiet and kindness. The day rested too. And in the gentle dark, the family story kept glowing: a little brighter, a little deeper, and ready to be remembered again tomorrow.`,
+        sceneDescription: `Peaceful bedtime ending with ${child} safe and cozy, family nearby, soft moonlight and warm premium storybook atmosphere.`,
+      },
+    ],
+  });
 }
 
 function roleDescription(roles: FamilyRole[] = []) {

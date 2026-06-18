@@ -83,6 +83,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(googleAi, /presetPromptSummary/);
   assert.match(googleAi, /character sheet as the strict identity reference/);
   assert.match(googleAi, /dedicated premium personalized storybook cover/);
+  assert.match(googleAi, /fallbackStoryText/);
+  assert.match(googleAi, /GEMINI_TEXT_EMPTY_/);
   assert.match(googleAi, /attempt <= 3/);
   assert.match(googleAi, /Story brief moderation unavailable/);
   assert.match(familyCharacters, /raw photo/);
