@@ -216,6 +216,26 @@ test("story entitlement policy grants one free story and then consumes credits",
   }), null);
 });
 
+test("fallback story text survives long parent inputs", async () => {
+  const { fallbackStoryText } = await import("../lib/story-fallback.ts");
+  const book = fallbackStoryText({
+    childName: "Maya",
+    age: 2,
+    gender: "girl",
+    grownUps: "Mum and Dad ".repeat(20),
+    event: "Her birthday party had a very detailed family memory. ".repeat(30),
+    memory: "She borrowed Mum's favorite handbag and walked around proudly. ".repeat(30),
+    characterTraits: "Joyful, playful, curious, expressive, and full of tiny confident moments. ".repeat(20),
+  });
+  assert.equal(book.pages.length, 10);
+  assert.ok(book.dedication.length <= 220);
+  for (const page of book.pages) {
+    assert.ok(page.text.length >= 40);
+    assert.ok(page.text.length <= 520);
+    assert.ok(page.sceneDescription.length <= 500);
+  }
+});
+
 test("obsolete backend files are removed", async () => {
   for (const path of [
     "lib/openai.ts",
