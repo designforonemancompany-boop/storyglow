@@ -16,7 +16,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
   ]);
   if (!story) notFound();
   if (story.status === "generating" || story.status === "failed") {
-    return <StoryGenerationStatus status={story.status} title={story.title} errorStage={story.error_stage} />;
+    return <StoryGenerationStatus storyId={story.id} status={story.status} title={story.title} errorStage={story.error_stage} />;
   }
   if (!["ready", "archived"].includes(story.status)) notFound();
   const [pages, coverUrl] = await Promise.all([

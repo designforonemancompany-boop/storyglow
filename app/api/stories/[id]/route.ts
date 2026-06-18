@@ -5,12 +5,64 @@ import { requireApiUser } from "@/lib/auth";
 import { ownedStory, storyPages } from "@/lib/firestore-data";
 import { firestore, storageBucket } from "@/lib/firebase/admin";
 import { generatePageIllustration, generateStandalonePageIllustration } from "@/lib/google-ai";
+import { fallbackStoryText } from "@/lib/story-fallback";
 
 const UpdateStorySchema = z.union([
   z.object({ archived: z.boolean() }),
   z.object({ action: z.literal("retry_illustrations") }),
+  z.object({ action: z.literal("recover_story_text") }),
 ]);
-const StoryActionSchema = z.object({ action: z.literal("retry_illustrations") });
+const StoryActionSchema = z.object({ action: z.enum(["retry_illustrations", "recover_story_text"]) });
+
+async function recoverFailedStoryText(storyId: string, userId: string) {
+  const story = await ownedStory(userId, storyId);
+  if (!story) throw new Error("STORY_NOT_FOUND");
+  if (story.status !== "failed" || story.error_stage !== "story_text_result") {
+    throw new Error("STORY_NOT_RECOVERABLE");
+  }
+  if (!story.brief) throw new Error("STORY_BRIEF_MISSING");
+
+  const book = fallbackStoryText(story.brief);
+  const db = firestore();
+  const storyRef = db.collection("stories").doc(storyId);
+  const pages = await storyRef.collection("pages").get();
+  const batch = db.batch();
+
+  pages.docs.forEach(doc => batch.delete(doc.ref));
+  book.pages.forEach((page, index) => {
+    batch.set(storyRef.collection("pages").doc(String(index + 1).padStart(2, "0")), {
+      page_number: index + 1,
+      title: page.title,
+      body: page.text,
+      illustration_path: null,
+      narration_path: null,
+      narration_duration_ms: null,
+      created_at: FieldValue.serverTimestamp(),
+    });
+  });
+  batch.set(storyRef, {
+    title: book.title,
+    dedication: book.dedication,
+    status: "ready",
+    media_generation_status: "needs_retry",
+    error_code: null,
+    error_stage: null,
+    recovered_from_stage: "story_text_result",
+    recovered_at: FieldValue.serverTimestamp(),
+    updated_at: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  batch.set(db.collection("generationReviews").doc(storyId), {
+    owner_id: userId,
+    story_id: storyId,
+    status: "needs_manual_review",
+    flags: ["story_text_recovered_with_safe_fallback", "illustration_retry_needed"],
+    notes: "Story text was recovered from a failed text-generation result using the deterministic safe fallback. Interior illustrations still need retry.",
+    updated_at: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  await batch.commit();
+
+  return { recovered: true, pages: book.pages.length };
+}
 
 async function retryMissingIllustrations(storyId: string, userId: string) {
   const story = await ownedStory(userId, storyId);
@@ -82,6 +134,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (!parsed.success) return NextResponse.json({ error: "Invalid story action." }, { status: 400 });
     const story = await ownedStory(user.uid, id);
     if (!story) return NextResponse.json({ error: "Story not found" }, { status: 404 });
+    if (parsed.data.action === "recover_story_text") {
+      const result = await recoverFailedStoryText(id, user.uid);
+      return NextResponse.json(result);
+    }
     if (!["ready", "archived"].includes(story.status)) {
       return NextResponse.json({ error: "Story is not ready for illustration retry yet." }, { status: 409 });
     }
@@ -114,6 +170,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
     const story = await ownedStory(user.uid, id);
     if (!story) return NextResponse.json({ error: "Story not found" }, { status: 404 });
+    if ("action" in update && update.action === "recover_story_text") {
+      const result = await recoverFailedStoryText(id, user.uid);
+      return NextResponse.json(result);
+    }
     if ("action" in update && update.action === "retry_illustrations") {
       if (!["ready", "archived"].includes(story.status)) {
         return NextResponse.json({ error: "Story is not ready for illustration retry yet." }, { status: 409 });
