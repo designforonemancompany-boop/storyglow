@@ -31,6 +31,27 @@ function limitText(value: string, maxLength: number) {
   return `${shortened || value.slice(0, Math.max(0, maxLength - 3))}...`;
 }
 
+function capitalizeOpening(value: string) {
+  const cleaned = value.trim().replace(/\s+/g, " ");
+  const index = cleaned.search(/[A-Za-z]/);
+  if (index < 0) return cleaned;
+  return `${cleaned.slice(0, index)}${cleaned.charAt(index).toUpperCase()}${cleaned.slice(index + 1)}`;
+}
+
+function normalizeFallbackStoryBook(book: FallbackStoryBook) {
+  return {
+    ...book,
+    title: capitalizeOpening(book.title),
+    dedication: capitalizeOpening(book.dedication),
+    pages: book.pages.map(page => ({
+      ...page,
+      title: capitalizeOpening(page.title),
+      text: capitalizeOpening(page.text),
+      sceneDescription: capitalizeOpening(page.sceneDescription),
+    })),
+  };
+}
+
 export function fallbackStoryText(brief: StoryBrief): FallbackStoryBook {
   const p = pronouns(brief.gender);
   const grownUps = limitText(brief.grownUps.trim() || "the people who loved them most", 90);
@@ -40,7 +61,7 @@ export function fallbackStoryText(brief: StoryBrief): FallbackStoryBook {
   const child = limitText(brief.childName.trim() || "Your child", 40);
   const agePhrase = `${brief.age}-year-old`;
 
-  return FallbackStorySchema.parse({
+  return normalizeFallbackStoryBook(FallbackStorySchema.parse({
     title: `${child}'s Little Glow`,
     dedication: limitText(`For ${child}, whose everyday moments already feel like keepsakes to ${grownUps}.`, 220),
     pages: [
@@ -95,5 +116,5 @@ export function fallbackStoryText(brief: StoryBrief): FallbackStoryBook {
         sceneDescription: `Peaceful bedtime ending with ${child} safe and cozy, family nearby, soft moonlight and warm premium storybook atmosphere.`,
       },
     ],
-  });
+  }));
 }

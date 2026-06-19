@@ -77,12 +77,17 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(appHosting, /gemini-2\.5-flash-image/);
   assert.match(googleAi, /GEMINI_IMAGE_MODEL/);
   assert.match(googleAi, /Warm, whimsical, premium custom children's-book illustration/);
+  assert.match(googleAi, /animated family-film storybook look/);
   assert.match(googleAi, /front, side, and back full-body views/);
   assert.match(googleAi, /face closeups, hair\/back-of-head detail/);
   assert.match(googleAi, /not a final story scene/);
   assert.match(googleAi, /presetPromptSummary/);
   assert.match(googleAi, /character sheet as the strict identity reference/);
   assert.match(googleAi, /dedicated premium personalized storybook cover/);
+  assert.match(googleAi, /front cover illustration/);
+  assert.match(googleAi, /Full-bleed cover art only/);
+  assert.match(googleAi, /Show exactly one instance of the main child/);
+  assert.match(googleAi, /No text, letters, title, captions, labels/);
   assert.match(googleAi, /fallbackStoryText/);
   assert.match(googleAi, /GEMINI_TEXT_EMPTY_/);
   assert.match(googleAi, /attempt <= 3/);
@@ -236,6 +241,24 @@ test("fallback story text survives long parent inputs", async () => {
     assert.ok(page.text.length <= 520);
     assert.ok(page.sceneDescription.length <= 500);
   }
+});
+
+test("story text normalization capitalizes openings", async () => {
+  const { normalizeStoryBook } = await import("../lib/story-text-normalization.ts");
+  const normalized = normalizeStoryBook({
+    title: "maya's tiny moon",
+    dedication: "for mum and dad",
+    pages: [{
+      title: "little handbag",
+      text: "maya walked slowly with the bag.",
+      sceneDescription: "cozy living room with one child.",
+    }],
+  });
+  assert.equal(normalized.title, "Maya's tiny moon");
+  assert.equal(normalized.dedication, "For mum and dad");
+  assert.equal(normalized.pages[0].title, "Little handbag");
+  assert.equal(normalized.pages[0].text, "Maya walked slowly with the bag.");
+  assert.equal(normalized.pages[0].sceneDescription, "Cozy living room with one child.");
 });
 
 test("obsolete backend files are removed", async () => {

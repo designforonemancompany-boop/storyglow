@@ -2,6 +2,7 @@ import { z } from "zod";
 import { presetPromptSummary } from "@/lib/character-presets";
 import { serverEnv } from "@/lib/env";
 import { fallbackStoryText } from "@/lib/story-fallback";
+import { normalizeStoryBook } from "@/lib/story-text-normalization";
 import type { FamilyRole, StoryBrief } from "@/lib/types";
 
 const StorySchema = z.object({
@@ -39,15 +40,19 @@ const STORY_JSON_SCHEMA = {
 
 export const STYLE_MODIFIER = `
 Warm, whimsical, premium custom children's-book illustration. Never photorealistic.
-Clean watercolor overlays, soft tactile paper texture, expressive cartoon character
-designs, gentle gouache and colored-pencil detail, sophisticated page composition,
-and a cohesive palette of parchment white, midnight navy, sky blue, marigold,
-raspberry coral, and leaf green. Preserve exact illustrated character identity,
-skin tone, hair, age, facial proportions, clothing motifs, and family relationships.
+Use a high-end animated family-film storybook look: rounded expressive character
+design, cinematic soft lighting, tactile painterly surfaces, gentle depth, polished
+composition, big readable emotions, and a cohesive palette of parchment white,
+midnight navy, sky blue, marigold, raspberry coral, and leaf green. Preserve exact
+illustrated character identity, skin tone, hair, age, facial proportions, clothing
+motifs, and family relationships.
 Adult-only features such as facial hair, glasses, handbags, or accessories must stay
 with the correctly labeled adult and must never migrate onto the child unless the brief
-explicitly says the child is wearing that same item in the scene. No logos, readable
-words, watermark, uncanny realism, or glossy 3D rendering.
+explicitly says the child is wearing that same item in the scene. Show only one
+instance of the main child in each scene unless the prompt explicitly asks for a
+memory montage. No duplicate clones, time-lapse copies, extra siblings, or repeated
+versions of the same character. No logos, readable words, captions, labels, signs,
+book-page text, watermark, uncanny realism, or generic stock-art faces.
 `;
 
 type GeminiPart = {
@@ -204,7 +209,9 @@ Requirements:
 - Finish calmly with the child safe, loved, and ready for sleep.
 - Use a clear emotional arc: cozy setup, playful discovery, heartfelt family reflection, then a calm bedtime landing.
 - Give every page a concrete illustration scene with the same characters and clothing.
-- The main child must always read like the same child from page to page, and adult traits must never be transferred onto the child.${attempt.extra}`,
+- Every title, dedication, page title, and page text must begin with a capital letter.
+- The main child must always read like the same child from page to page, and adult traits must never be transferred onto the child.
+- Scene descriptions must ask for one clear moment only, never duplicated versions of the child in the same illustration.${attempt.extra}`,
       }],
     }],
     generationConfig: {
@@ -214,7 +221,7 @@ Requirements:
     },
     safetySettings,
   });
-      return StorySchema.parse(JSON.parse(textFrom(result)));
+      return normalizeStoryBook(StorySchema.parse(JSON.parse(textFrom(result))));
     } catch (error) {
       if (error instanceof Error && error.message === "STORY_INPUT_BLOCKED") throw error;
       lastError = error;
@@ -305,11 +312,13 @@ Scene: ${sceneDescription}
 Use the full character bible sheet: match the same front/side/back identity,
 expression design, hair shape, outfit details, adult accessories, and color swatches.
 Landscape double-page composition, clear focal action, safe age-appropriate
-environment, and quiet space for separately rendered HTML story text.
+environment, full-bleed illustration only.
 Keep clothing, scale, face shape, skin tone, and role-specific accessories consistent
 with the reference sheet. Do not add facial hair, glasses, or adult accessories to the
-child unless the scene description explicitly calls for it. Do not place text inside the
-illustration.`,
+child unless the scene description explicitly calls for it.
+Show exactly one instance of the main child. Do not create duplicate copies of the child
+or repeat the same character in the background. Do not place any text, title, caption,
+letters, labels, signs, book pages with writing, or typography inside the illustration.`,
         },
       ],
     }],
@@ -348,9 +357,11 @@ Page title context: ${pageTitle}
 Scene: ${sceneDescription}
 
 Landscape double-page composition, clear focal action, safe age-appropriate
-environment, and quiet space for separately rendered HTML story text.
-Keep the main child visually consistent with this brief, and do not place text inside
-the illustration.`,
+environment, full-bleed illustration only.
+Keep the main child visually consistent with this brief. Show exactly one instance of
+the main child. Do not create duplicate copies of the child or repeat the same character
+in the background. Do not place any text, title, caption, letters, labels, signs, book
+pages with writing, or typography inside the illustration.`,
       }],
     }],
     generationConfig: {
@@ -387,13 +398,15 @@ Use the full character bible sheet: match identity, outfit, expression logic,
 adult accessories, child age, and palette exactly.
 
 Cover requirements:
-- This is a cover, not page 1 interior art.
+- This is the front cover illustration, not page 1 interior art.
 - Strong thumbnail readability on a mobile library card.
 - Clear emotional invitation: family love, wonder, and the memorable detail.
 - One iconic focal composition with the main child instantly recognizable.
-- Leave generous clean space where HTML can render the title separately.
-- Keep the premium watercolor, soft paper texture, and cohesive palette.
-- No text, logos, watermarks, or photorealism inside the image.`,
+- Full-bleed cover art only; the app renders the title separately in HTML.
+- Show exactly one instance of the main child, with no duplicate copies or repeated
+  background versions of the same character.
+- Keep the premium animated storybook lighting, soft paper texture, and cohesive palette.
+- No text, letters, title, captions, labels, logos, watermarks, or photorealism inside the image.`,
         },
       ],
     }],
@@ -433,12 +446,14 @@ ${presetPromptSummary(brief)}
 Emotional hook: ${emotionalHook}
 
 Cover requirements:
-- This is a cover, not page 1 interior art.
+- This is the front cover illustration, not page 1 interior art.
 - Strong thumbnail readability on a mobile library card.
 - Clear emotional invitation: family love, wonder, and the memorable detail.
 - One iconic focal composition with the main child instantly recognizable.
-- Leave generous clean space where HTML can render the title separately.
-- No text, logos, watermarks, or photorealism inside the image.`,
+- Full-bleed cover art only; the app renders the title separately in HTML.
+- Show exactly one instance of the main child, with no duplicate copies or repeated
+  background versions of the same character.
+- No text, letters, title, captions, labels, logos, watermarks, or photorealism inside the image.`,
       }],
     }],
     generationConfig: {
