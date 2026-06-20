@@ -319,18 +319,21 @@ export function StoryReader({
     setSleepTimerEndsAt(null);
   }
 
-  async function retryIllustrations() {
+  async function retryIllustrations(regenerateAll = false) {
     setRetryingIllustrations(true);
-    setIllustrationMessage("Restarting page illustration generation...");
+    setIllustrationMessage(regenerateAll ? "Regenerating all page illustrations with stricter proportion rules..." : "Restarting page illustration generation...");
     try {
       const response = await fetch(`/api/stories/${storyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "retry_illustrations" }),
+        body: JSON.stringify({ action: regenerateAll ? "regenerate_illustrations" : "retry_illustrations" }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not restart illustrations.");
-      setIllustrationMessage(`Retry started for ${result.missingPages || missingIllustrationCount} page illustrations. Refresh this story in a few minutes.`);
+      const count = regenerateAll ? result.regeneratedPages || pages.length : result.missingPages || missingIllustrationCount;
+      setIllustrationMessage(regenerateAll
+        ? `Regeneration started for ${count} page illustrations. Refresh this story in a few minutes.`
+        : `Retry started for ${count} page illustrations. Refresh this story in a few minutes.`);
     } catch (error) {
       setIllustrationMessage(error instanceof Error ? error.message : "Could not restart illustrations.");
     } finally {
@@ -404,12 +407,24 @@ export function StoryReader({
         </div>
       )}
       <div className="reader-bottom">
-        {!sample && missingIllustrationCount > 0 ? (
+        {!sample && !readOnly ? (
           <div className="illustration-status" role="status">
-            <strong>{missingIllustrationCount} page illustration{missingIllustrationCount === 1 ? "" : "s"} pending.</strong>
-            <span>{pageArtStatus === "needs_retry" ? "The story text and cover are ready, but interior art needs another generation pass." : "Interior art is still being prepared."}</span>
-            <button className="button button-small" type="button" disabled={retryingIllustrations} onClick={() => void retryIllustrations()}>
-              {retryingIllustrations ? "Starting retry..." : "Retry page illustrations"}
+            {missingIllustrationCount > 0 ? (
+              <>
+                <strong>{missingIllustrationCount} page illustration{missingIllustrationCount === 1 ? "" : "s"} pending.</strong>
+                <span>{pageArtStatus === "needs_retry" ? "The story text and cover are ready, but interior art needs another generation pass." : "Interior art is still being prepared."}</span>
+                <button className="button button-small" type="button" disabled={retryingIllustrations} onClick={() => void retryIllustrations(false)}>
+                  {retryingIllustrations ? "Starting retry..." : "Retry page illustrations"}
+                </button>
+              </>
+            ) : (
+              <>
+                <strong>Illustration quality control</strong>
+                <span>If the artwork has distorted proportions, regenerate all page illustrations with the stricter StoryGlow art rules.</span>
+              </>
+            )}
+            <button className="button button-small" type="button" disabled={retryingIllustrations} onClick={() => void retryIllustrations(true)}>
+              {retryingIllustrations ? "Starting regeneration..." : "Regenerate all page art"}
             </button>
             {illustrationMessage ? <small>{illustrationMessage}</small> : null}
           </div>

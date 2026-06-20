@@ -121,6 +121,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(reader, /Illustration needs retry/);
   assert.match(reader, /Illustration is being painted/);
   assert.match(reader, /Retry page illustrations/);
+  assert.match(reader, /Regenerate all page art/);
   assert.match(reader, /coverUrl/);
   assert.match(reader, /\/api\/progress/);
   assert.match(reader, /Audio drama direction/);
@@ -204,11 +205,13 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(versionRoute, /userFeedback/);
   assert.match(versionRoute, /Admin access required/);
   assert.match(storyApi, /retry_illustrations/);
+  assert.match(storyApi, /regenerate_illustrations/);
   assert.match(storyApi, /recover_story_text/);
   assert.match(storyApi, /recovered_from_stage: "story_text_result"/);
   assert.match(storyApi, /z\.union/);
   assert.match(storyApi, /generateStandalonePageIllustration/);
   assert.match(storyApi, /media_generation_status: "generating"/);
+  assert.match(storyApi, /regenerateAll/);
   assert.match(generation, /story_structure_version/);
   assert.match(generation, /audio_drama_status/);
   assert.match(retryIllustrations, /generateStandalonePageIllustration/);
