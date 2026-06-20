@@ -319,21 +319,20 @@ export function StoryReader({
     setSleepTimerEndsAt(null);
   }
 
-  async function retryIllustrations(regenerateAll = false) {
+  async function retryIllustration(pageNumber?: number) {
     setRetryingIllustrations(true);
-    setIllustrationMessage(regenerateAll ? "Regenerating all page illustrations with stricter proportion rules..." : "Restarting page illustration generation...");
+    setIllustrationMessage(pageNumber ? `Retrying illustration for page ${pageNumber} only...` : "Restarting missing page illustration generation...");
     try {
       const response = await fetch(`/api/stories/${storyId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: regenerateAll ? "regenerate_illustrations" : "retry_illustrations" }),
+        body: JSON.stringify(pageNumber ? { action: "retry_page_illustration", pageNumber } : { action: "retry_illustrations" }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not restart illustrations.");
-      const count = regenerateAll ? result.regeneratedPages || pages.length : result.missingPages || missingIllustrationCount;
-      setIllustrationMessage(regenerateAll
-        ? `Regeneration started for ${count} page illustrations. Refresh this story in a few minutes.`
-        : `Retry started for ${count} page illustrations. Refresh this story in a few minutes.`);
+      setIllustrationMessage(pageNumber
+        ? `Retry started for page ${pageNumber}. Refresh this story in a few minutes.`
+        : `Retry started for ${result.missingPages || missingIllustrationCount} missing page illustrations. Refresh this story in a few minutes.`);
     } catch (error) {
       setIllustrationMessage(error instanceof Error ? error.message : "Could not restart illustrations.");
     } finally {
@@ -412,19 +411,19 @@ export function StoryReader({
             {missingIllustrationCount > 0 ? (
               <>
                 <strong>{missingIllustrationCount} page illustration{missingIllustrationCount === 1 ? "" : "s"} pending.</strong>
-                <span>{pageArtStatus === "needs_retry" ? "The story text and cover are ready, but interior art needs another generation pass." : "Interior art is still being prepared."}</span>
-                <button className="button button-small" type="button" disabled={retryingIllustrations} onClick={() => void retryIllustrations(false)}>
-                  {retryingIllustrations ? "Starting retry..." : "Retry page illustrations"}
+                <span>{pageArtStatus === "needs_retry" ? "The story text and cover are ready, but interior art needs another pass." : "Interior art is still being prepared."}</span>
+                <button className="button button-small" type="button" disabled={retryingIllustrations} onClick={() => void retryIllustration()}>
+                  {retryingIllustrations ? "Starting retry..." : "Retry missing illustrations"}
                 </button>
               </>
             ) : (
               <>
                 <strong>Illustration quality control</strong>
-                <span>If the artwork has distorted proportions, regenerate all page illustrations with the stricter StoryGlow art rules.</span>
+                <span>If this page has distorted proportions, retry this page only to save credits and protect the good artwork.</span>
               </>
             )}
-            <button className="button button-small" type="button" disabled={retryingIllustrations} onClick={() => void retryIllustrations(true)}>
-              {retryingIllustrations ? "Starting regeneration..." : "Regenerate all page art"}
+            <button className="button button-small" type="button" disabled={retryingIllustrations} onClick={() => void retryIllustration(page.page_number)}>
+              {retryingIllustrations ? "Starting page retry..." : "Retry this page illustration"}
             </button>
             {illustrationMessage ? <small>{illustrationMessage}</small> : null}
           </div>

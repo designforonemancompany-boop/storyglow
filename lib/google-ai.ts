@@ -291,6 +291,40 @@ Requirements:
   return fallbackStoryText(brief);
 }
 
+const STORYLINE_DIRECTIONS = [
+  { id: "gentle-heart", label: "Gentle Heart", prompt: "a tender emotional story about growing up, family love, and one tiny memorable detail becoming precious" },
+  { id: "playful-adventure", label: "Playful Adventure", prompt: "a lively bedtime-safe adventure with humor, a small surprise, and a joyful family landing" },
+  { id: "magical-keepsake", label: "Magical Keepsake", prompt: "a whimsical keepsake story where an ordinary family detail feels quietly magical without scary peril" },
+] as const;
+
+export type StorylineOption = {
+  id: string;
+  label: string;
+  title: string;
+  hook: string;
+  tone: string;
+  book: z.infer<typeof StorySchema>;
+};
+
+export async function generateStorylineOptions(brief: StoryBrief): Promise<StorylineOption[]> {
+  const options: StorylineOption[] = [];
+  for (const direction of STORYLINE_DIRECTIONS) {
+    const book = await generateStoryText({
+      ...brief,
+      characterTraits: `${brief.characterTraits || "warm and curious"}. Storyline direction: ${direction.prompt}.`,
+    });
+    options.push({
+      id: direction.id,
+      label: direction.label,
+      title: book.title,
+      hook: book.dedication,
+      tone: direction.prompt,
+      book,
+    });
+  }
+  return options;
+}
+
 function roleDescription(roles: FamilyRole[] = []) {
   return roles.map(role =>
     `Marker ${role.marker}: ${role.role.replace("_", " ")}${role.displayName ? ` named ${role.displayName}` : ""}`,

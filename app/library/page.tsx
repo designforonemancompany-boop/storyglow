@@ -9,7 +9,13 @@ import { storyFromDoc } from "@/lib/firestore-data";
 import { signMediaPath } from "@/lib/media";
 import type { PrintOrderRecord } from "@/lib/types";
 
-export default async function LibraryPage() {
+export default async function LibraryPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ creating?: string }>;
+}) {
+  const search = await searchParams;
+  const creatingStoryId = search?.creating || "";
   const user = await requireUser();
   const db = firestore();
   const env = serverEnv();
@@ -40,6 +46,13 @@ export default async function LibraryPage() {
         <p className="section-label">Your private library</p>
         <h1>My Stories</h1>
         <p>Open your books on any phone, continue listening, or share a revocable private link.</p>
+        {creatingStoryId ? (
+          <div className="library-progress-banner" role="status">
+            <strong>Your storybook is being created</strong>
+            <span>StoryGlow saved it here and will keep painting pages in the background. You can come back later - no need to wait on the page.</span>
+            <div className="progress-track"><span /></div>
+          </div>
+        ) : null}
         <p className="credit-balance"><strong>{profile.data()?.storybookCredits || 0}</strong> premium storybook credits</p>
         {cards.length ? (
           <div className="story-grid">
@@ -60,9 +73,9 @@ export default async function LibraryPage() {
                   <div className="snapshot-meta">
                     <span>Story snapshot</span>
                     <strong>{story.brief?.event || "A family memory"}</strong>
-                    {story.cover_choice_status === "ready" ? <small>Choose from 3 cover directions</small> : <small>Cover-led illustration flow</small>}
+                    {story.storyline_choice_status !== "selected" ? <small>Choose from 3 storyline directions</small> : story.cover_choice_status === "ready" ? <small>Choose from 3 illustration styles</small> : story.media_generation_status === "generating" ? <small>Creating pages in the background</small> : <small>Saved storybook</small>}
                   </div>
-                  {story.status === "ready" || story.status === "archived" ? <Link className="button" href={`/stories/${story.id}`}>Read or listen</Link> : null}
+                  {story.status === "ready" || story.status === "archived" ? <Link className="button" href={`/stories/${story.id}`}>{story.storyline_choice_status !== "selected" ? "Choose storyline" : story.cover_choice_status === "ready" ? "Choose illustration style" : "Read or listen"}</Link> : null}
                   {story.status === "generating" ? <Link className="button" href={`/stories/${story.id}`}>View progress</Link> : null}
                   {story.status === "failed" ? <Link className="button" href={`/stories/${story.id}`}>See retry details</Link> : null}
                   <LibraryActions

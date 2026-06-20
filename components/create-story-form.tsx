@@ -124,7 +124,7 @@ export function CreateStoryForm({
         </section>
       ) : null}
       <p className="form-message" role="alert">{message}</p>
-      <div className="form-footer"><span>First we write the story, then you choose from 3 cover directions before the inside pages are painted.</span><button className="button" disabled={busy}>{busy ? "Writing your story..." : isSignedIn ? "Create my story" : "Sign in and create"}</button></div>
+      <div className="form-footer"><span>First choose from 3 storylines, then 3 illustration styles. After that, the book saves to My Stories while pages finish painting.</span><button className="button" disabled={busy}>{busy ? "Preparing storylines..." : isSignedIn ? "Create my story" : "Sign in and create"}</button></div>
     </form>
   );
 }

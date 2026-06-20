@@ -1,16 +1,11 @@
-import { FieldValue } from "firebase-admin/firestore";
+﻿import { FieldValue } from "firebase-admin/firestore";
 import { after, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireApiUser } from "@/lib/auth";
 import { firestore, storageBucket } from "@/lib/firebase/admin";
-import {
-  COVER_STYLE_OPTIONS,
-  buildVisualStyleLock,
-  generateCoverOptionIllustration,
-  generateStoryText,
-} from "@/lib/google-ai";
+import { generateStorylineOptions } from "@/lib/google-ai";
 import { selectStoryEntitlement, type StoryEntitlement } from "@/lib/story-entitlements";
-import type { StoryBrief, StoryPageRecord } from "@/lib/types";
+import type { StoryBrief } from "@/lib/types";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -123,69 +118,7 @@ async function markGenerationFailed({
   ));
 }
 
-async function generateCoverChoices({
-  storyId,
-  userId,
-  brief,
-  title,
-  dedication,
-  emotionalHook,
-}: {
-  storyId: string;
-  userId: string;
-  brief: StoryBrief;
-  title: string;
-  dedication: string;
-  emotionalHook: string;
-}) {
-  const db = firestore();
-  const storyRef = db.collection("stories").doc(storyId);
-  const results = await Promise.allSettled(COVER_STYLE_OPTIONS.map(async option => {
-    const visualStyleLock = buildVisualStyleLock(brief, option);
-    const bytes = await generateCoverOptionIllustration({
-      title,
-      dedication,
-      brief,
-      emotionalHook,
-      option,
-      visualStyleLock,
-    });
-    const path = `story-media/${userId}/${storyId}/cover-option-${option.id}.png`;
-    await storageBucket().file(path).save(bytes, {
-      resumable: false,
-      contentType: "image/png",
-      metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, coverOptionId: option.id } },
-    });
-    await storyRef.collection("coverOptions").doc(option.id).set({
-      owner_id: userId,
-      story_id: storyId,
-      option_id: option.id,
-      style_label: option.label,
-      prompt_summary: option.promptSummary,
-      visual_style_lock: visualStyleLock,
-      image_path: path,
-      selected: false,
-      status: "ready",
-      created_at: FieldValue.serverTimestamp(),
-      updated_at: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    return option.id;
-  }));
-
-  const readyCount = results.filter(result => result.status === "fulfilled").length;
-  const failedOptions = results
-    .map((result, index) => result.status === "rejected" ? COVER_STYLE_OPTIONS[index].id : null)
-    .filter(Boolean);
-
-  await storyRef.set({
-    cover_choice_status: readyCount ? "ready" : "needs_retry",
-    media_generation_status: readyCount ? "awaiting_cover_choice" : "needs_retry",
-    cover_option_failures: failedOptions,
-    updated_at: FieldValue.serverTimestamp(),
-  }, { merge: true });
-}
-
-async function completeStoryGeneration({
+async function prepareStorylineChoices({
   storyId,
   userId,
   brief,
@@ -196,98 +129,56 @@ async function completeStoryGeneration({
   brief: StoryBrief;
   entitlement: StoryEntitlement;
 }) {
-  let generationStage = "starting";
-  let storyCommitted = false;
+  const generationStage = "storyline_options";
   try {
     const db = firestore();
-
-    generationStage = "story_text_result";
-    const book = await generateStoryText(brief);
-    const pageRecords: Array<Omit<StoryPageRecord, "id" | "story_id"> & { created_at: FirebaseFirestore.FieldValue }> =
-      book.pages.map((page, index) => ({
-        page_number: index + 1,
-        title: page.title,
-        body: page.text,
-        scene_description: page.sceneDescription,
-        story_beat: page.storyBeat || null,
-        audio_scene_plan: page.audioScenePlan || null,
-        ambience_key: page.ambienceKey || null,
-        effect_cues: page.effectCues || [],
-        character_voice_hints: page.characterVoiceHints || [],
-        illustration_path: null,
-        narration_path: null,
-        narration_duration_ms: null,
-        created_at: FieldValue.serverTimestamp(),
-      }));
-
-    generationStage = "firestore_text_commit";
-    const batch = db.batch();
     const storyRef = db.collection("stories").doc(storyId);
-    for (const page of pageRecords) {
-      batch.set(storyRef.collection("pages").doc(String(page.page_number).padStart(2, "0")), page);
-    }
+    const options = await generateStorylineOptions(brief);
+    const batch = db.batch();
+    options.forEach(option => {
+      batch.set(storyRef.collection("storylineOptions").doc(option.id), {
+        owner_id: userId,
+        story_id: storyId,
+        option_id: option.id,
+        label: option.label,
+        title: option.title,
+        hook: option.hook,
+        tone: option.tone,
+        book: option.book,
+        selected: false,
+        status: "ready",
+        created_at: FieldValue.serverTimestamp(),
+        updated_at: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    });
     batch.update(storyRef, {
-      title: book.title,
-      dedication: book.dedication,
+      title: "Choose your story path",
+      dedication: "Pick the storyline that feels most like your family before StoryGlow paints the book.",
+      status: "ready",
+      storyline_choice_status: "ready",
+      selected_storyline_option_id: null,
       cover_path: null,
-      cover_prompt_version: "storybook-cover-options-v1",
-      story_structure_version: "five-minute-audio-drama-v1",
-      audio_drama_status: "planned",
-      audio_drama_version: "audio-drama-v1",
-      cover_choice_status: "generating",
+      cover_prompt_version: "storybook-cover-options-v2",
+      cover_choice_status: "not_started",
       selected_cover_option_id: null,
       visual_style_lock: null,
       family_character_id: null,
       character_reference_path: null,
-      media_generation_status: "generating",
-      status: "ready",
+      media_generation_status: null,
+      story_structure_version: "three-storyline-choice-v1",
+      audio_drama_status: "planned",
+      audio_drama_version: "audio-drama-v1",
       updated_at: FieldValue.serverTimestamp(),
     });
     await batch.commit();
-    storyCommitted = true;
-
     await cleanupRawFamilyPhoto({ storyId, userId, brief });
-
-    try {
-      generationStage = "cover_options_generation";
-      await generateCoverChoices({
-        storyId,
-        userId,
-        brief,
-        title: book.title,
-        dedication: book.dedication,
-        emotionalHook: book.pages[0]?.sceneDescription || brief.memory,
-      });
-    } catch (error) {
-      console.warn("Cover choices failed; story text remains readable", {
-        storyId,
-        userId,
-        message: error instanceof Error ? error.message : "UNKNOWN",
-      });
-      await storyRef.set({
-        cover_choice_status: "needs_retry",
-        media_generation_status: "needs_retry",
-        error_code: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN",
-        error_stage: generationStage,
-        updated_at: FieldValue.serverTimestamp(),
-      }, { merge: true });
-    }
   } catch (error) {
-    console.error("Story generation failed", {
+    console.error("Storyline option generation failed", {
       storyId,
       userId,
       stage: generationStage,
       message: error instanceof Error ? error.message : "UNKNOWN",
     });
-    if (storyCommitted) {
-      await firestore().collection("stories").doc(storyId).set({
-        media_generation_status: "needs_retry",
-        error_code: error instanceof Error ? error.message.slice(0, 120) : "UNKNOWN",
-        error_stage: generationStage,
-        updated_at: FieldValue.serverTimestamp(),
-      }, { merge: true }).catch(() => undefined);
-      return;
-    }
     await markGenerationFailed({ storyId, userId, brief, entitlement, error, stage: generationStage });
   }
 }
@@ -346,7 +237,7 @@ export async function POST(request: Request) {
 
     const reservedEntitlement = entitlement;
     if (!reservedEntitlement) throw new Error("STORY_CREDIT_REQUIRED");
-    after(() => completeStoryGeneration({
+    after(() => prepareStorylineChoices({
       storyId,
       userId: user.uid,
       brief,

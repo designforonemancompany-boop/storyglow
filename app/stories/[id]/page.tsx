@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { CoverChoice } from "@/components/cover-choice";
+import { StorylineChoice } from "@/components/storyline-choice";
 import { StoryReader } from "@/components/story-reader";
 import { StoryGenerationStatus } from "@/components/story-generation-status";
 import { requireUser } from "@/lib/auth";
@@ -18,17 +19,33 @@ export default async function StoryPage({
   const search = await searchParams;
   const forceReader = search?.read === "1" || search?.read === "true";
   const user = await requireUser();
-  const [story, records, progress, coverOptionsSnapshot] = await Promise.all([
+  const [story, records, progress, coverOptionsSnapshot, storylineOptionsSnapshot] = await Promise.all([
     ownedStory(user.uid, id),
     storyPages(id),
     firestore().collection("profiles").doc(user.uid).collection("progress").doc(id).get(),
     firestore().collection("stories").doc(id).collection("coverOptions").get(),
+    firestore().collection("stories").doc(id).collection("storylineOptions").get(),
   ]);
   if (!story) notFound();
   if (story.status === "generating" || story.status === "failed") {
     return <StoryGenerationStatus storyId={story.id} status={story.status} title={story.title} errorStage={story.error_stage} />;
   }
   if (!["ready", "archived"].includes(story.status)) notFound();
+
+  const storylineChoiceStatus = story.storyline_choice_status || null;
+  if (!forceReader && storylineChoiceStatus && storylineChoiceStatus !== "selected") {
+    const options = storylineOptionsSnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        label: data.label || doc.id,
+        title: data.title || "Untitled storyline",
+        hook: data.hook || "A StoryGlow storyline drafted from your family memory.",
+        tone: data.tone || "Warm, personal, and bedtime-safe.",
+      };
+    });
+    return <StorylineChoice storyId={story.id} options={options} />;
+  }
 
   const coverChoiceStatus = story.cover_choice_status || (story.cover_path ? "selected" : null);
   if (!forceReader && coverChoiceStatus && coverChoiceStatus !== "selected") {

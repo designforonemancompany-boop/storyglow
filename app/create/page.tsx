@@ -11,7 +11,7 @@ export default async function CreatePage() {
         <aside className="creation-aside">
           <p className="section-label">Your family&apos;s book</p>
           <h1>What memory should their story hold?</h1>
-          <p>StoryGlow writes an age-matched story first, then lets you choose from three cover directions before painting the inside pages.</p>
+          <p>StoryGlow drafts three age-matched storylines first. Pick the one you love, choose an illustration style, then let the book finish quietly in My Stories.</p>
         </aside>
         <CreateStoryForm isSignedIn={Boolean(user)} />
       </main>

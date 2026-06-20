@@ -53,6 +53,8 @@ export type StoryRecord = {
   character_reference_path?: string | null;
   snapshot_id?: string | null;
   cover_choice_status?: "not_started" | "generating" | "ready" | "selected" | "needs_retry" | null;
+  storyline_choice_status?: "generating" | "ready" | "selected" | "needs_retry" | null;
+  selected_storyline_option_id?: string | null;
   selected_cover_option_id?: string | null;
   visual_style_lock?: string | null;
   error_code?: string | null;
@@ -161,6 +163,34 @@ export type CoverOptionRecord = {
   prompt_summary: string;
   visual_style_lock: string;
   image_path: string | null;
+  selected: boolean;
+  status: "ready" | "failed";
+  created_at: string;
+  updated_at: string;
+};
+export type StorylineOptionRecord = {
+  id: string;
+  owner_id: string;
+  story_id: string;
+  option_id: string;
+  label: string;
+  title: string;
+  hook: string;
+  tone: string;
+  book: {
+    title: string;
+    dedication: string;
+    pages: Array<{
+      title: string;
+      text: string;
+      sceneDescription: string;
+      storyBeat?: string;
+      audioScenePlan?: string;
+      ambienceKey?: StoryPageRecord["ambience_key"];
+      effectCues?: string[];
+      characterVoiceHints?: string[];
+    }>;
+  };
   selected: boolean;
   status: "ready" | "failed";
   created_at: string;

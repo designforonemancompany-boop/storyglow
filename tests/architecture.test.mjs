@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, coverChoice, feedback, auth, signInForm, storyApi, coverOptionsApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, storyPage, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, coverChoice, storylineChoice, feedback, auth, signInForm, storyApi, storylineOptionsApi, coverOptionsApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, storyPage, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -14,10 +14,12 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read(".env.example"),
     read("components/story-reader.tsx"),
     read("components/cover-choice.tsx"),
+    read("components/storyline-choice.tsx"),
     read("app/api/feedback/route.ts"),
     read("app/api/auth/session/route.ts"),
     read("components/sign-in-form.tsx"),
     read("app/api/stories/[id]/route.ts"),
+    read("app/api/stories/[id]/storyline-options/route.ts"),
     read("app/api/stories/[id]/cover-options/route.ts"),
     read("app/api/stories/[id]/checkout/route.ts"),
     read("app/api/stripe/webhook/route.ts"),
@@ -55,13 +57,15 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(storageRules, /allow read, write: if false/);
   assert.match(generation, /delete\(\{ ignoreNotFound: true \}\)/);
   assert.match(generation, /familyPhotoAudits/);
-  assert.match(generation, /Promise\.allSettled/);
-  assert.match(generation, /firestore_text_commit/);
+  assert.match(storylineOptionsApi, /Promise\.allSettled/);
   assert.match(generation, /media_generation_status/);
-  assert.match(generation, /generateCoverChoices/);
-  assert.match(generation, /COVER_STYLE_OPTIONS/);
-  assert.match(generation, /coverOptions/);
-  assert.match(generation, /awaiting_cover_choice/);
+  assert.match(generation, /generateStorylineOptions/);
+  assert.match(generation, /storylineOptions/);
+  assert.match(generation, /storyline_choice_status/);
+  assert.match(storylineOptionsApi, /COVER_STYLE_OPTIONS/);
+  assert.match(storylineOptionsApi, /coverOptions/);
+  assert.match(storylineOptionsApi, /awaiting_cover_choice/);
+  assert.match(storylineOptionsApi, /storylineOptions/);
   assert.match(generation, /cover_choice_status/);
   assert.doesNotMatch(generation, /createCharacterReference/);
   assert.doesNotMatch(generation, /saveFamilyCharacter/);
@@ -120,17 +124,22 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(reader, /readOnly \?/);
   assert.match(reader, /Illustration needs retry/);
   assert.match(reader, /Illustration is being painted/);
-  assert.match(reader, /Retry page illustrations/);
-  assert.match(reader, /Regenerate all page art/);
+  assert.match(reader, /Retry missing illustrations/);
+  assert.match(reader, /Retry this page illustration/);
+  assert.doesNotMatch(reader, /Regenerate all page art/);
   assert.match(reader, /coverUrl/);
   assert.match(reader, /\/api\/progress/);
   assert.match(reader, /Audio drama direction/);
   assert.match(reader, /Play bedtime audio drama/);
-  assert.match(coverChoice, /Choose the book cover/);
+  assert.match(storylineChoice, /Choose the storyline/);
+  assert.match(storylineChoice, /Choose this storyline/);
+  assert.match(coverChoice, /Choose the illustration style/);
   assert.match(coverChoice, /\/api\/stories\/\$\{storyId\}\/cover-options/);
-  assert.match(coverChoice, /Painting three cover ideas/);
+  assert.match(coverChoice, /Painting three illustration styles/);
   assert.match(coverChoice, /Read story text now/);
   assert.match(storyPage, /forceReader/);
+  assert.match(storylineOptionsApi, /generateCoverOptionIllustration/);
+  assert.match(storylineOptionsApi, /selected_storyline_option_id/);
   assert.match(coverOptionsApi, /generateStandalonePageIllustration/);
   assert.match(coverOptionsApi, /visualStyleLock/);
   assert.match(coverOptionsApi, /selected_cover_option_id/);
@@ -197,24 +206,27 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(library, /Story snapshot/);
   assert.match(library, /library-cover-fallback/);
   assert.match(library, /Choose your cover/);
+  assert.match(library, /library-progress-banner/);
+  assert.match(library, /Choose from 3 storyline directions/);
   assert.doesNotMatch(library, /birthday-story-scenes/);
   assert.doesNotMatch(createForm, /CHARACTER_PRESETS|preset-avatar|selectedCharacterPresetIds|Or choose illustrated family characters/);
   assert.match(firebaseConfig, /publicEnv/);
   assert.match(versionRoute, /K_REVISION/);
-  assert.match(versionRoute, /storyglow-reader-regeneration-v2/);
-  assert.match(versionRoute, /regenerate-all-page-art/);
+  assert.match(versionRoute, /storyglow-staged-choice-v3/);
+  assert.match(versionRoute, /single-page-illustration-retry/);
   assert.match(versionRoute, /feedbackExport/);
   assert.match(versionRoute, /userFeedback/);
   assert.match(versionRoute, /Admin access required/);
   assert.match(storyApi, /retry_illustrations/);
-  assert.match(storyApi, /regenerate_illustrations/);
+  assert.match(storyApi, /retry_page_illustration/);
+  assert.doesNotMatch(storyApi, /regenerate_illustrations/);
   assert.match(storyApi, /recover_story_text/);
   assert.match(storyApi, /recovered_from_stage: "story_text_result"/);
   assert.match(storyApi, /z\.union/);
   assert.match(storyApi, /generateStandalonePageIllustration/);
   assert.match(storyApi, /media_generation_status: "generating"/);
-  assert.match(storyApi, /regenerateAll/);
-  assert.match(generation, /story_structure_version/);
+  assert.match(storyApi, /single_page/);
+  assert.match(generation, /three-storyline-choice-v1/);
   assert.match(generation, /audio_drama_status/);
   assert.match(retryIllustrations, /generateStandalonePageIllustration/);
   assert.match(retryIllustrations, /media_generation_status: "generating"/);

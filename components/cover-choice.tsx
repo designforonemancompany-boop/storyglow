@@ -47,8 +47,8 @@ export function CoverChoice({
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not choose this cover.");
-      setMessage("Cover selected. Painting the inside pages now...");
-      router.refresh();
+      setMessage("Style selected. Your book is being created and saved in My Stories...");
+      router.push(`/library?creating=${storyId}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not choose this cover.");
       setBusyOption("");
@@ -57,14 +57,14 @@ export function CoverChoice({
 
   return (
     <main className="page-content cover-choice-page">
-      <p className="section-label">Choose the book cover</p>
+      <p className="section-label">Choose the illustration style</p>
       <h1>{title}</h1>
       {dedication ? <p className="cover-choice-dedication">{dedication}</p> : null}
-      <p>Pick the cover direction you love most. StoryGlow will use that art style as the guide for every inside page.</p>
+      <p>Pick the illustration style you love most. StoryGlow will save the book in your library and finish painting the inside pages in the background.</p>
       {status === "generating" || !options.length ? (
         <div className="empty-state">
-          <h2>Painting three cover ideas</h2>
-          <p>Your story text is already saved. The cover choices will appear here automatically. You can start reading while StoryGlow finishes painting.</p>
+          <h2>Painting three illustration styles</h2>
+          <p>Your selected storyline is saved. The three visual styles will appear here automatically. You can also return to your library while StoryGlow paints.</p>
           <div className="cover-choice-actions">
             <Link className="button" href={`/stories/${storyId}?read=1`}>Read story text now</Link>
             <Link className="text-button" href="/library">Back to My Stories</Link>
@@ -72,8 +72,8 @@ export function CoverChoice({
         </div>
       ) : status === "needs_retry" ? (
         <div className="empty-state">
-          <h2>Cover choices need another try</h2>
-          <p>The story is readable, but the cover-choice images did not finish. We can add a retry button next, but your credit and story text are safe.</p>
+          <h2>Illustration styles need another try</h2>
+          <p>The selected storyline is safe, but the illustration style choices did not finish. You can still open the readable story.</p>
           <Link className="button" href={`/stories/${storyId}?read=1`}>Open readable story</Link>
         </div>
       ) : (
@@ -88,7 +88,7 @@ export function CoverChoice({
                 <h2>{option.label}</h2>
                 <p>{option.promptSummary}</p>
                 <button className="button full" type="button" disabled={Boolean(busyOption)} onClick={() => void choose(option.id)}>
-                  {busyOption === option.id ? "Choosing this cover..." : "Choose this cover"}
+                  {busyOption === option.id ? "Choosing this style..." : "Choose this style"}
                 </button>
               </div>
             </article>

@@ -27,6 +27,8 @@ export function storyFromDoc(doc: QueryDocumentSnapshot<DocumentData> | Firebase
     character_reference_path: data.character_reference_path || null,
     snapshot_id: data.snapshot_id || null,
     cover_choice_status: data.cover_choice_status || null,
+    storyline_choice_status: data.storyline_choice_status || null,
+    selected_storyline_option_id: data.selected_storyline_option_id || null,
     selected_cover_option_id: data.selected_cover_option_id || null,
     visual_style_lock: data.visual_style_lock || null,
     error_code: data.error_code || null,

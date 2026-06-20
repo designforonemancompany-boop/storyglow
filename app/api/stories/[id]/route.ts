@@ -10,10 +10,14 @@ import { fallbackStoryText } from "@/lib/story-fallback";
 const UpdateStorySchema = z.union([
   z.object({ archived: z.boolean() }),
   z.object({ action: z.literal("retry_illustrations") }),
-  z.object({ action: z.literal("regenerate_illustrations") }),
+  z.object({ action: z.literal("retry_page_illustration"), pageNumber: z.number().int().min(1).max(20) }),
   z.object({ action: z.literal("recover_story_text") }),
 ]);
-const StoryActionSchema = z.object({ action: z.enum(["retry_illustrations", "regenerate_illustrations", "recover_story_text"]) });
+const StoryActionSchema = z.union([
+  z.object({ action: z.literal("retry_illustrations") }),
+  z.object({ action: z.literal("retry_page_illustration"), pageNumber: z.number().int().min(1).max(20) }),
+  z.object({ action: z.literal("recover_story_text") }),
+]);
 
 async function recoverFailedStoryText(storyId: string, userId: string) {
   const story = await ownedStory(userId, storyId);
@@ -65,11 +69,11 @@ async function recoverFailedStoryText(storyId: string, userId: string) {
   return { recovered: true, pages: book.pages.length };
 }
 
-async function retryMissingIllustrations(storyId: string, userId: string, regenerateAll = false) {
+async function retryMissingIllustrations(storyId: string, userId: string, pageNumber?: number) {
   const story = await ownedStory(userId, storyId);
   if (!story) throw new Error("STORY_NOT_FOUND");
   const pages = await storyPages(storyId);
-  const missingPages = regenerateAll ? pages : pages.filter(page => !page.illustration_path);
+  const missingPages = typeof pageNumber === "number" ? pages.filter(page => page.page_number === pageNumber) : pages.filter(page => !page.illustration_path);
   if (!missingPages.length) {
     await firestore().collection("stories").doc(storyId).set({
       media_generation_status: "ready",
@@ -92,11 +96,11 @@ async function retryMissingIllustrations(storyId: string, userId: string, regene
       const bytes = characterReference
         ? await generatePageIllustration(characterReference, page.title, page.scene_description || page.body, page.page_number)
         : await generateStandalonePageIllustration(story.brief, page.title, page.scene_description || page.body, page.page_number, story.visual_style_lock);
-      const path = `story-media/${userId}/${storyId}/page-${page.page_number}-${regenerateAll ? `regen-${Date.now()}` : "retry"}.png`;
+      const path = `story-media/${userId}/${storyId}/page-${page.page_number}-retry-${Date.now()}.png`;
       await storageBucket().file(path).save(bytes, {
         resumable: false,
         contentType: "image/png",
-        metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, retry: "true" } },
+        metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, retry: typeof pageNumber === "number" ? "single_page" : "missing_only" } },
       });
       await storyRef.collection("pages").doc(String(page.page_number).padStart(2, "0")).set({
         illustration_path: path,
@@ -147,12 +151,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       media_generation_status: "generating",
       updated_at: FieldValue.serverTimestamp(),
     }, { merge: true });
-    const regenerateAll = parsed.data.action === "regenerate_illustrations";
-    const result = await retryMissingIllustrations(id, user.uid, regenerateAll);
+    const pageNumber = parsed.data.action === "retry_page_illustration" ? parsed.data.pageNumber : undefined;
+    const result = await retryMissingIllustrations(id, user.uid, pageNumber);
     return NextResponse.json({
       retryStarted: true,
-      missingPages: regenerateAll ? 0 : result.missingPages,
-      regeneratedPages: regenerateAll ? result.missingPages : 0,
+      missingPages: typeof pageNumber === "number" ? 0 : result.missingPages,
+      retriedPage: pageNumber || null,
       retryFlags: result.retryFlags,
     });
   } catch (error) {
@@ -192,18 +196,18 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
         retryFlags: result.retryFlags,
       });
     }
-    if ("action" in update && update.action === "regenerate_illustrations") {
+    if ("action" in update && update.action === "retry_page_illustration") {
       if (!["ready", "archived"].includes(story.status)) {
-        return NextResponse.json({ error: "Story is not ready for illustration regeneration yet." }, { status: 409 });
+        return NextResponse.json({ error: "Story is not ready for illustration retry yet." }, { status: 409 });
       }
       await firestore().collection("stories").doc(id).set({
         media_generation_status: "generating",
         updated_at: FieldValue.serverTimestamp(),
       }, { merge: true });
-      const result = await retryMissingIllustrations(id, user.uid, true);
+      const result = await retryMissingIllustrations(id, user.uid, update.pageNumber);
       return NextResponse.json({
         retryStarted: true,
-        regeneratedPages: result.missingPages,
+        retriedPage: update.pageNumber,
         retryFlags: result.retryFlags,
       });
     }
