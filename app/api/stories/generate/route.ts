@@ -206,24 +206,47 @@ async function completeStoryGeneration({
 
     if (familyCharacterId && characterPath) {
       generationStage = "mark_character_used";
-      await markFamilyCharacterUsed(familyCharacterId);
+      await markFamilyCharacterUsed(familyCharacterId).catch(error => {
+        generationReviewFlags.push("character_usage_mark_retry_needed");
+        console.warn("Reusable character usage mark failed; story will continue", {
+          storyId,
+          userId,
+          familyCharacterId,
+          message: error instanceof Error ? error.message : "UNKNOWN",
+        });
+      });
     } else if (characterReference) {
       generationStage = "save_character_reference";
       const characterRef = db.collection("familyCharacters").doc();
-      characterPath = `character-media/${userId}/${characterRef.id}/reference.png`;
-      await storageBucket().file(characterPath).save(characterReference, {
-        resumable: false,
-        contentType: "image/png",
-        metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, characterId: characterRef.id } },
-      });
-      familyCharacterId = await saveFamilyCharacter({
-        userId,
-        brief,
-        storyId,
-        referencePath: characterPath,
-        source: brief.photoPath ? "role_labeled_photo" : "generated_bible",
-        characterId: characterRef.id,
-      });
+      const pendingCharacterPath = `character-media/${userId}/${characterRef.id}/reference.png`;
+      try {
+        await storageBucket().file(pendingCharacterPath).save(characterReference, {
+          resumable: false,
+          contentType: "image/png",
+          metadata: { cacheControl: "private,max-age=3600", metadata: { ownerId: userId, storyId, characterId: characterRef.id } },
+        });
+        characterPath = pendingCharacterPath;
+        familyCharacterId = await saveFamilyCharacter({
+          userId,
+          brief,
+          storyId,
+          referencePath: characterPath,
+          source: brief.photoPath ? "role_labeled_photo" : "generated_bible",
+          characterId: characterRef.id,
+        });
+      } catch (error) {
+        generationReviewFlags.push("character_reference_save_retry_needed");
+        console.warn("Character reference save failed; story will continue without saved reference", {
+          storyId,
+          userId,
+          characterPath: pendingCharacterPath,
+          message: error instanceof Error ? error.message : "UNKNOWN",
+        });
+        await storageBucket().file(pendingCharacterPath).delete({ ignoreNotFound: true }).catch(() => undefined);
+        characterReference = null;
+        characterPath = null;
+        familyCharacterId = null;
+      }
     }
 
     if (!characterReference) generationReviewFlags.push("standalone_illustration_fallback_used");

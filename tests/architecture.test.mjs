@@ -63,6 +63,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(generation, /Promise\.allSettled/);
   assert.match(generation, /narration_warmup_retry_needed/);
   assert.match(generation, /character_reference_retry_needed/);
+  assert.match(generation, /character_reference_save_retry_needed/);
+  assert.match(generation, /character_usage_mark_retry_needed/);
   assert.match(generation, /CharacterPresetIdSchema/);
   assert.match(generation, /preset_character_sheet/);
   assert.match(generation, /photo_derived_character_sheet/);
