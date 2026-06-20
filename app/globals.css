@@ -216,9 +216,9 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
   color: var(--ink); background: #e7f0ef; cursor: pointer; font-weight: 800;
 }
 .password-rules { display: grid; gap: 6px; margin: 12px 0 18px; padding: 0; list-style: none; color: var(--ink-soft); font-size: .86rem; }
-.password-rules li::before { content: "â—?; margin-right: 8px; color: #b8aa90; }
+.password-rules li::before { content: "\25CB"; margin-right: 8px; color: #b8aa90; }
 .password-rules li.passed { color: var(--leaf); font-weight: 800; }
-.password-rules li.passed::before { content: "âœ?; color: var(--leaf); }
+.password-rules li.passed::before { content: "\2713"; color: var(--leaf); }
 .auth-inline-action { margin: 0 0 18px; padding-left: 0; }
 .magic-link-form { margin-top: 14px; text-align: center; }
 .form-message { min-height: 24px; color: #9d3041; font-weight: 700; }
@@ -398,3 +398,8 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
 .cover-choice-copy { display: grid; gap: 12px; padding: 22px; }
 .cover-choice-copy h2 { margin: 0; font-size: clamp(1.55rem, 2.5vw, 2.35rem); }
 .cover-choice-copy p { color: var(--ink-soft); }
+.audio-drama-card { display: grid; gap: 6px; margin-top: 22px; padding: 14px 16px; color: var(--ink); background: #fff1bf; border-radius: 14px; font-size: .9rem; }
+.audio-drama-card strong { font-family: var(--sans); letter-spacing: .08em; text-transform: uppercase; font-size: .72rem; color: var(--copper); }
+.audio-drama-card span, .audio-drama-card small { color: var(--ink-soft); }
+
+.cover-choice-actions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; }

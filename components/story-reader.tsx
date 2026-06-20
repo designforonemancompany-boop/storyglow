@@ -11,6 +11,10 @@ export type ReaderPage = {
   body: string;
   illustration_url: string | null;
   narration_url: string | null;
+  audio_scene_plan?: string | null;
+  ambience_key?: string | null;
+  effect_cues?: string[];
+  character_voice_hints?: string[];
 };
 
 type ReaderCover = {
@@ -389,6 +393,13 @@ export function StoryReader({
             <p className="section-label">Page {page.page_number} of {pages.length}</p>
             <h2>{page.title}</h2>
             <p>{page.body}</p>
+            {page.audio_scene_plan ? (
+              <div className="audio-drama-card">
+                <strong>Audio drama direction</strong>
+                <span>{page.audio_scene_plan}</span>
+                {page.effect_cues?.length ? <small>Effects: {page.effect_cues.join(", ")}</small> : null}
+              </div>
+            ) : null}
           </article>
         </div>
       )}
@@ -420,7 +431,7 @@ export function StoryReader({
         </button>
         <button className="play-button" onClick={() => void togglePlayback()} disabled={busy}>
           {playing ? <Pause size={18} /> : <Play size={18} />}
-          {playing ? "Pause bedtime audio" : busy ? "Preparing audio..." : audioPrepared ? "Audio ready - tap to play" : "Play bedtime audio"}
+          {playing ? "Pause bedtime audio" : busy ? "Preparing audio..." : audioPrepared ? "Audio ready - tap for audio drama" : "Play bedtime audio drama"}
         </button>
         {audioError ? <span role="alert">{audioError}</span> : null}
         <label>

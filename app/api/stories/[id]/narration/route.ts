@@ -29,7 +29,11 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         storyId: id,
         pageNumber: parsed.data.pageNumber,
         title: page.data()?.title,
-        body: page.data()?.body,
+        body: [
+          page.data()?.body,
+          page.data()?.audio_scene_plan ? `Audio drama direction: ${page.data()?.audio_scene_plan}` : "",
+          Array.isArray(page.data()?.effect_cues) && page.data()?.effect_cues.length ? `Gentle effects to imply vocally: ${page.data()?.effect_cues.join(", ")}` : "",
+        ].filter(Boolean).join("\n\n"),
       });
       narrationPath = rendered.narrationPath;
       await pageRef.update({

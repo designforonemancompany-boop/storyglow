@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, coverChoice, feedback, auth, signInForm, storyApi, coverOptionsApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, coverChoice, feedback, auth, signInForm, storyApi, coverOptionsApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, storyPage, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -30,6 +30,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("app/library/page.tsx"),
     read("app/api/version/route.ts"),
     read("app/api/stories/[id]/illustrations/retry/route.ts"),
+    read("app/stories/[id]/page.tsx"),
     read("app/share/[token]/page.tsx"),
     read("app/admin/feedback/page.tsx"),
     read("app/feedback-admin/page.tsx"),
@@ -71,6 +72,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(appHosting, /gemini-2\.5-flash-image/);
   assert.match(googleAi, /GEMINI_IMAGE_MODEL/);
   assert.match(googleAi, /Warm, whimsical, premium custom children's-book illustration/);
+  assert.match(googleAi, /Non-negotiable anatomy quality/);
+  assert.match(googleAi, /natural age-appropriate proportions/);
   assert.match(googleAi, /animated family-film storybook look/);
   assert.match(googleAi, /front, side, and back full-body views/);
   assert.match(googleAi, /face closeups, hair\/back-of-head detail/);
@@ -85,6 +88,9 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(googleAi, /GEMINI_TEXT_EMPTY_/);
   assert.match(googleAi, /attempt <= 3/);
   assert.match(googleAi, /Story brief moderation unavailable/);
+  assert.match(googleAi, /5-minute bedtime adventure/);
+  assert.match(googleAi, /audioScenePlan/);
+  assert.match(googleAi, /ambienceKey/);
   assert.match(googleAi, /COVER_STYLE_OPTIONS/);
   assert.match(googleAi, /buildVisualStyleLock/);
   assert.match(googleAi, /generateCoverOptionIllustration/);
@@ -117,9 +123,13 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(reader, /Retry page illustrations/);
   assert.match(reader, /coverUrl/);
   assert.match(reader, /\/api\/progress/);
+  assert.match(reader, /Audio drama direction/);
+  assert.match(reader, /Play bedtime audio drama/);
   assert.match(coverChoice, /Choose the book cover/);
   assert.match(coverChoice, /\/api\/stories\/\$\{storyId\}\/cover-options/);
   assert.match(coverChoice, /Painting three cover ideas/);
+  assert.match(coverChoice, /Read story text now/);
+  assert.match(storyPage, /forceReader/);
   assert.match(coverOptionsApi, /generateStandalonePageIllustration/);
   assert.match(coverOptionsApi, /visualStyleLock/);
   assert.match(coverOptionsApi, /selected_cover_option_id/);
@@ -199,6 +209,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(storyApi, /z\.union/);
   assert.match(storyApi, /generateStandalonePageIllustration/);
   assert.match(storyApi, /media_generation_status: "generating"/);
+  assert.match(generation, /story_structure_version/);
+  assert.match(generation, /audio_drama_status/);
   assert.match(retryIllustrations, /generateStandalonePageIllustration/);
   assert.match(retryIllustrations, /media_generation_status: "generating"/);
   assert.match(retryIllustrations, /missingPages/);
@@ -242,6 +254,9 @@ test("fallback story text survives long parent inputs", async () => {
     assert.ok(page.text.length >= 40);
     assert.ok(page.text.length <= 520);
     assert.ok(page.sceneDescription.length <= 500);
+    assert.ok(page.audioScenePlan);
+    assert.ok(page.ambienceKey);
+    assert.ok(Array.isArray(page.effectCues));
   }
 });
 

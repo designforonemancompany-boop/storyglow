@@ -64,14 +64,17 @@ export function CoverChoice({
       {status === "generating" || !options.length ? (
         <div className="empty-state">
           <h2>Painting three cover ideas</h2>
-          <p>Your story text is already saved. The cover choices will appear here automatically.</p>
-          <Link className="text-button" href="/library">Back to My Stories</Link>
+          <p>Your story text is already saved. The cover choices will appear here automatically. You can start reading while StoryGlow finishes painting.</p>
+          <div className="cover-choice-actions">
+            <Link className="button" href={`/stories/${storyId}?read=1`}>Read story text now</Link>
+            <Link className="text-button" href="/library">Back to My Stories</Link>
+          </div>
         </div>
       ) : status === "needs_retry" ? (
         <div className="empty-state">
           <h2>Cover choices need another try</h2>
           <p>The story is readable, but the cover-choice images did not finish. We can add a retry button next, but your credit and story text are safe.</p>
-          <Link className="button" href={`/stories/${storyId}`}>Open readable story</Link>
+          <Link className="button" href={`/stories/${storyId}?read=1`}>Open readable story</Link>
         </div>
       ) : (
         <div className="cover-choice-grid">

@@ -28,5 +28,9 @@ export default async function SharedStoryPage({ params }: { params: Promise<{ to
     body: page.body,
     illustration_url: page.illustration_url,
     narration_url: page.narration_url,
+    audio_scene_plan: page.audio_scene_plan,
+    ambience_key: page.ambience_key,
+    effect_cues: page.effect_cues,
+    character_voice_hints: page.character_voice_hints,
   }))} cover={{ image_url: coverUrl, dedication: story.data()?.dedication }} pageArtStatus={story.data()?.media_generation_status || null} missingIllustrationCount={missingIllustrationCount} readOnly />;
 }

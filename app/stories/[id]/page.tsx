@@ -7,8 +7,16 @@ import { firestore } from "@/lib/firebase/admin";
 import { ownedStory, storyPages } from "@/lib/firestore-data";
 import { signMediaPath, signStoryPages } from "@/lib/media";
 
-export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ read?: string }>;
+}) {
   const { id } = await params;
+  const search = await searchParams;
+  const forceReader = search?.read === "1" || search?.read === "true";
   const user = await requireUser();
   const [story, records, progress, coverOptionsSnapshot] = await Promise.all([
     ownedStory(user.uid, id),
@@ -23,7 +31,7 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
   if (!["ready", "archived"].includes(story.status)) notFound();
 
   const coverChoiceStatus = story.cover_choice_status || (story.cover_path ? "selected" : null);
-  if (coverChoiceStatus && coverChoiceStatus !== "selected") {
+  if (!forceReader && coverChoiceStatus && coverChoiceStatus !== "selected") {
     const options = await Promise.all(coverOptionsSnapshot.docs.map(async doc => {
       const data = doc.data();
       return {
@@ -48,5 +56,9 @@ export default async function StoryPage({ params }: { params: Promise<{ id: stri
     body: page.body,
     illustration_url: page.illustration_url,
     narration_url: page.narration_url,
+    audio_scene_plan: page.audio_scene_plan,
+    ambience_key: page.ambience_key,
+    effect_cues: page.effect_cues,
+    character_voice_hints: page.character_voice_hints,
   }))} cover={{ image_url: coverUrl, dedication: story.dedication }} pageArtStatus={story.media_generation_status || null} missingIllustrationCount={missingIllustrationCount} initialPage={progress.data()?.page_number || 1} initialPosition={progress.data()?.audio_position_ms || 0} initialRate={Number(progress.data()?.playback_rate || 1)} />;
 }

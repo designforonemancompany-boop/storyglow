@@ -69,6 +69,11 @@ export type StoryPageRecord = {
   title: string;
   body: string;
   scene_description?: string | null;
+  story_beat?: string | null;
+  audio_scene_plan?: string | null;
+  ambience_key?: "bedroom_glow" | "birthday_sparkle" | "gentle_adventure" | "family_laughter" | "quiet_wonder" | "sleepy_landing" | null;
+  effect_cues?: string[];
+  character_voice_hints?: string[];
   illustration_path: string | null;
   narration_path: string | null;
   narration_duration_ms: number | null;

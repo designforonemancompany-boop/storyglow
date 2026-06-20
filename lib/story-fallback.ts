@@ -8,6 +8,11 @@ const FallbackStorySchema = z.object({
     title: z.string().min(2).max(70),
     text: z.string().min(40).max(520),
     sceneDescription: z.string().min(20).max(500),
+    storyBeat: z.string().min(8).max(140).optional(),
+    audioScenePlan: z.string().min(8).max(500).optional(),
+    ambienceKey: z.enum(["bedroom_glow", "birthday_sparkle", "gentle_adventure", "family_laughter", "quiet_wonder", "sleepy_landing"]).optional(),
+    effectCues: z.array(z.string()).max(4).optional(),
+    characterVoiceHints: z.array(z.string()).max(4).optional(),
   })).length(10),
 });
 
@@ -38,16 +43,23 @@ function capitalizeOpening(value: string) {
   return `${cleaned.slice(0, index)}${cleaned.charAt(index).toUpperCase()}${cleaned.slice(index + 1)}`;
 }
 
+const ambienceCycle = ["bedroom_glow", "gentle_adventure", "birthday_sparkle", "quiet_wonder", "family_laughter", "sleepy_landing"] as const;
+
 function normalizeFallbackStoryBook(book: FallbackStoryBook) {
   return {
     ...book,
     title: capitalizeOpening(book.title),
     dedication: capitalizeOpening(book.dedication),
-    pages: book.pages.map(page => ({
+    pages: book.pages.map((page, index) => ({
       ...page,
       title: capitalizeOpening(page.title),
       text: capitalizeOpening(page.text),
       sceneDescription: capitalizeOpening(page.sceneDescription),
+      storyBeat: page.storyBeat || `Beat ${index + 1}: a clear, emotionally warm 5-minute bedtime story moment.`,
+      audioScenePlan: page.audioScenePlan || "Warm narrator with gentle pacing, subtle ambience, soft transition effect, and no startling sounds.",
+      ambienceKey: page.ambienceKey || ambienceCycle[Math.min(index, ambienceCycle.length - 1)],
+      effectCues: page.effectCues || ["soft chime", "page whoosh"],
+      characterVoiceHints: page.characterVoiceHints || ["Narrator warm and close", "Family voices gentle and bedtime-safe"],
     })),
   };
 }

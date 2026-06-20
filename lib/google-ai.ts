@@ -11,6 +11,11 @@ const StorySchema = z.object({
     title: z.string().min(2).max(70),
     text: z.string().min(40).max(520),
     sceneDescription: z.string().min(20).max(500),
+    storyBeat: z.string().min(8).max(140).optional(),
+    audioScenePlan: z.string().min(8).max(500).optional(),
+    ambienceKey: z.enum(["bedroom_glow", "birthday_sparkle", "gentle_adventure", "family_laughter", "quiet_wonder", "sleepy_landing"]).optional(),
+    effectCues: z.array(z.string().min(2).max(60)).max(4).optional(),
+    characterVoiceHints: z.array(z.string().min(2).max(90)).max(4).optional(),
   })).min(10).max(12),
 });
 
@@ -29,8 +34,13 @@ const STORY_JSON_SCHEMA = {
           title: { type: "string" },
           text: { type: "string" },
           sceneDescription: { type: "string" },
+          storyBeat: { type: "string" },
+          audioScenePlan: { type: "string" },
+          ambienceKey: { type: "string", enum: ["bedroom_glow", "birthday_sparkle", "gentle_adventure", "family_laughter", "quiet_wonder", "sleepy_landing"] },
+          effectCues: { type: "array", items: { type: "string" } },
+          characterVoiceHints: { type: "array", items: { type: "string" } },
         },
-        required: ["title", "text", "sceneDescription"],
+        required: ["title", "text", "sceneDescription", "storyBeat", "audioScenePlan", "ambienceKey", "effectCues", "characterVoiceHints"],
       },
     },
   },
@@ -49,9 +59,14 @@ Adult-only features such as facial hair, glasses, handbags, or accessories must 
 with the correctly labeled adult and must never migrate onto the child unless the brief
 explicitly says the child is wearing that same item in the scene. Show only one
 instance of the main child in each scene unless the prompt explicitly asks for a
-memory montage. No duplicate clones, time-lapse copies, extra siblings, or repeated
-versions of the same character. No logos, readable words, captions, labels, signs,
-book-page text, watermark, uncanny realism, or generic stock-art faces.
+memory montage. Non-negotiable anatomy quality: natural child proportions for the
+stated age, correctly sized head and body, symmetrical face, clean eyes, normal hands
+with five fingers when visible, correctly jointed arms and legs, grounded feet, no
+warped limbs, twisted necks, stretched torsos, broken perspective, melted features,
+or distorted facial proportions. No duplicate clones, time-lapse copies, extra
+siblings, or repeated versions of the same character. No logos, readable words,
+captions, labels, signs, book-page text, watermark, uncanny realism, or generic
+stock-art faces.
 `;
 
 export const COVER_STYLE_OPTIONS = [
@@ -86,7 +101,7 @@ export function buildVisualStyleLock(brief: StoryBrief, option: CoverStyleOption
 Main child identity lock: ${brief.childName}, age ${brief.age}, ${brief.gender}, with these parent-supplied traits: ${brief.characterTraits || "warm, curious, expressive, bedtime-friendly"}.
 Family lock: ${brief.grownUps || "loving grown-ups"}. ${roleLock(brief)}
 Story memory lock: ${brief.event}. Memorable detail: ${brief.memory}.
-Consistency rules: keep the same child age, face shape, hair, outfit color family, family roles, palette, and emotional tone across cover and every interior page. Adult accessories must stay with adults unless the scene explicitly says the child is carrying or wearing the item. Use one clear moment per image and exactly one instance of the main child.`;
+Consistency rules: keep the same child age, face shape, hair, outfit color family, family roles, palette, and emotional tone across cover and every interior page. Maintain correct anatomy and natural age-appropriate proportions with no distorted faces, hands, limbs, or perspective. Adult accessories must stay with adults unless the scene explicitly says the child is carrying or wearing the item. Use one clear moment per image and exactly one instance of the main child.`;
 }
 
 type GeminiPart = {
@@ -201,7 +216,7 @@ export async function generateStoryText(brief: StoryBrief) {
   const attempts = [
     {
       temperature: 0.8,
-      system: "You are StoryGlow's senior children's-book writer. Create emotionally specific, developmentally appropriate bedtime books while following child-safety requirements exactly.",
+      system: "You are StoryGlow's senior children's-book writer and bedtime audio-drama director. Create emotionally specific, developmentally appropriate 5-minute bedtime adventures while following child-safety requirements exactly.",
       extra: "",
     },
     {
@@ -233,6 +248,8 @@ Memorable detail: ${brief.memory}
 
 Requirements:
 - Exactly 10 to 12 pages.
+- Create a 5-minute bedtime adventure with premium family-animation energy: exciting, funny, emotionally warm, and sleep-safe. Do not copy Disney characters, franchises, lyrics, or exact house style.
+- Target 700 to 950 total words across the book.
 - Short, lyrical, read-aloud prose appropriate for age ${brief.age}.
 - Keep page titles brief and elegant, usually 2 to 5 words, never loud or salesy.
 - Word count target by page: ages 2-3 use about 40-80 words, ages 4-5 use about 60-110 words, ages 6-8 use about 90-150 words.
@@ -241,11 +258,14 @@ Requirements:
 - Never shame the child or reinforce rigid gender roles.
 - No violence, frightening peril, romance, unsafe imitation, adult cosmetics instruction, or brands.
 - Finish calmly with the child safe, loved, and ready for sleep.
-- Use a clear emotional arc: cozy setup, playful discovery, heartfelt family reflection, then a calm bedtime landing.
+- Use a strong 5-minute arc: cozy opening, child desire, playful surprise, tiny complication, imaginative high point, emotional discovery, family reflection, then a calm bedtime landing.
 - Give every page a concrete illustration scene with the same characters and clothing.
 - Every title, dedication, page title, and page text must begin with a capital letter.
 - The main child must always read like the same child from page to page, and adult traits must never be transferred onto the child.
-- Scene descriptions must ask for one clear moment only, never duplicated versions of the child in the same illustration.${attempt.extra}`,
+- Scene descriptions must ask for one clear moment only, never duplicated versions of the child in the same illustration.
+- For every page include storyBeat, audioScenePlan, ambienceKey, effectCues, and characterVoiceHints.
+- Audio scene plans should feel like a professional bedtime podcast: narrator tone, optional gentle character dialogue, subtle ambience, soft transition effects, and no startling sounds.
+- effectCues must be short bedtime-safe cues such as soft chime, tiny giggle, page whoosh, blanket rustle, sparkle twinkle, gentle footsteps, quiet applause, sleepy sigh.${attempt.extra}`,
       }],
     }],
     generationConfig: {
