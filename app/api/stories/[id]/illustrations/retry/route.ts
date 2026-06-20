@@ -40,8 +40,8 @@ async function retryMissingIllustrations({
   for (const page of missingPages) {
     try {
       const bytes = characterReference
-        ? await generatePageIllustration(characterReference, page.title, page.body, page.page_number)
-        : await generateStandalonePageIllustration(story.brief, page.title, page.body, page.page_number);
+        ? await generatePageIllustration(characterReference, page.title, page.scene_description || page.body, page.page_number)
+        : await generateStandalonePageIllustration(story.brief, page.title, page.scene_description || page.body, page.page_number, story.visual_style_lock);
       const path = `story-media/${userId}/${storyId}/page-${page.page_number}.png`;
       await storageBucket().file(path).save(bytes, {
         resumable: false,

@@ -18,7 +18,7 @@ type ReaderCover = {
   dedication?: string;
 };
 
-type PageArtStatus = "generating" | "ready" | "needs_retry" | null;
+type PageArtStatus = "generating" | "awaiting_cover_choice" | "ready" | "needs_retry" | null;
 
 function buildInitialNarrationCache(pages: ReaderPage[]) {
   return pages.reduce<Record<number, string>>((cache, page) => {

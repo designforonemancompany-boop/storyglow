@@ -46,8 +46,8 @@ export function StoryGenerationStatus({
 
   return (
     <main className="page-content status-page">
-      <p className="section-label">{status === "generating" ? "Illustrating your book" : "Generation needs a retry"}</p>
-      <h1>{status === "generating" ? "Your StoryGlow book is being created" : "Your story did not finish"}</h1>
+      <p className="section-label">{status === "generating" ? "Preparing your book" : "Generation needs a retry"}</p>
+      <h1>{status === "generating" ? "Your StoryGlow book is being prepared" : "Your story did not finish"}</h1>
       <p>
         {status === "generating"
           ? `${title} is safely saved in your library. You can leave this page open; it will refresh automatically when the story is ready.`
@@ -59,13 +59,13 @@ export function StoryGenerationStatus({
       {status === "generating" ? (
         <div className="generation-steps" aria-label="Story generation progress">
           <span>Writing the story</span>
-          <span>Designing characters</span>
-          <span>Painting pages</span>
+          <span>Painting cover choices</span>
+          <span>Waiting for your cover pick</span>
         </div>
       ) : null}
       <div className="form-footer">
         <Link className="button" href="/library">Back to My Stories</Link>
-        {status === "generating" ? <span>Usually ready in about 2 minutes.</span> : (
+        {status === "generating" ? <span>The story text saves first, then cover choices appear automatically.</span> : (
           errorStage === "story_text_result"
             ? <button className="button" type="button" onClick={recoverStory} disabled={busy}>{busy ? "Recovering..." : "Recover this story"}</button>
             : <Link className="text-button" href="/create">Try again</Link>

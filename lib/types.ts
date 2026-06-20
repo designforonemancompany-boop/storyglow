@@ -48,10 +48,13 @@ export type StoryRecord = {
   brief: StoryBrief;
   cover_path: string | null;
   cover_prompt_version?: string | null;
-  media_generation_status?: "generating" | "ready" | "needs_retry" | null;
+  media_generation_status?: "generating" | "awaiting_cover_choice" | "ready" | "needs_retry" | null;
   family_character_id?: string | null;
   character_reference_path?: string | null;
   snapshot_id?: string | null;
+  cover_choice_status?: "not_started" | "generating" | "ready" | "selected" | "needs_retry" | null;
+  selected_cover_option_id?: string | null;
+  visual_style_lock?: string | null;
   error_code?: string | null;
   error_stage?: string | null;
   created_at: string;
@@ -65,6 +68,7 @@ export type StoryPageRecord = {
   page_number: number;
   title: string;
   body: string;
+  scene_description?: string | null;
   illustration_path: string | null;
   narration_path: string | null;
   narration_duration_ms: number | null;
@@ -141,4 +145,19 @@ export type GenerationReviewRecord = {
   };
   notes: string;
   created_at: string;
+};
+
+export type CoverOptionRecord = {
+  id: string;
+  owner_id: string;
+  story_id: string;
+  option_id: string;
+  style_label: string;
+  prompt_summary: string;
+  visual_style_lock: string;
+  image_path: string | null;
+  selected: boolean;
+  status: "ready" | "failed";
+  created_at: string;
+  updated_at: string;
 };

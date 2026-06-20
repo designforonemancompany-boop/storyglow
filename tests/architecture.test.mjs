@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, feedback, auth, signInForm, storyApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, coverChoice, feedback, auth, signInForm, storyApi, coverOptionsApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -13,10 +13,12 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("lib/google-ai.ts"),
     read(".env.example"),
     read("components/story-reader.tsx"),
+    read("components/cover-choice.tsx"),
     read("app/api/feedback/route.ts"),
     read("app/api/auth/session/route.ts"),
     read("components/sign-in-form.tsx"),
     read("app/api/stories/[id]/route.ts"),
+    read("app/api/stories/[id]/cover-options/route.ts"),
     read("app/api/stories/[id]/checkout/route.ts"),
     read("app/api/stripe/webhook/route.ts"),
     read("app/api/firebase-config/route.ts"),
@@ -52,26 +54,16 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(storageRules, /allow read, write: if false/);
   assert.match(generation, /delete\(\{ ignoreNotFound: true \}\)/);
   assert.match(generation, /familyPhotoAudits/);
-  assert.match(generation, /findReusableFamilyCharacter/);
-  assert.match(generation, /character-media/);
-  assert.match(generation, /generateCoverIllustration/);
-  assert.match(generation, /generateStandaloneCoverIllustration/);
-  assert.match(generation, /generateStandalonePageIllustration/);
-  assert.match(generation, /storyCovers/);
-  assert.match(generation, /storySnapshots/);
-  assert.match(generation, /generationReviews/);
   assert.match(generation, /Promise\.allSettled/);
-  assert.match(generation, /narration_warmup_retry_needed/);
-  assert.match(generation, /character_reference_retry_needed/);
-  assert.match(generation, /character_reference_save_retry_needed/);
-  assert.match(generation, /character_usage_mark_retry_needed/);
-  assert.match(generation, /CharacterPresetIdSchema/);
-  assert.match(generation, /preset_character_sheet/);
-  assert.match(generation, /photo_derived_character_sheet/);
-  assert.match(generation, /standalone_illustration_fallback_used/);
-  assert.match(generation, /standalone_page_generation/);
   assert.match(generation, /firestore_text_commit/);
   assert.match(generation, /media_generation_status/);
+  assert.match(generation, /generateCoverChoices/);
+  assert.match(generation, /COVER_STYLE_OPTIONS/);
+  assert.match(generation, /coverOptions/);
+  assert.match(generation, /awaiting_cover_choice/);
+  assert.match(generation, /cover_choice_status/);
+  assert.doesNotMatch(generation, /createCharacterReference/);
+  assert.doesNotMatch(generation, /saveFamilyCharacter/);
   assert.doesNotMatch(generation, /generationStage = "moderation"/);
   assert.doesNotMatch(generation, /moderateStoryBrief/);
   assert.doesNotMatch(generation, /cover_path: pageRecords\[0\]\?\.illustration_path/);
@@ -83,7 +75,6 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(googleAi, /front, side, and back full-body views/);
   assert.match(googleAi, /face closeups, hair\/back-of-head detail/);
   assert.match(googleAi, /not a final story scene/);
-  assert.match(googleAi, /presetPromptSummary/);
   assert.match(googleAi, /character sheet as the strict identity reference/);
   assert.match(googleAi, /dedicated premium personalized storybook cover/);
   assert.match(googleAi, /front cover illustration/);
@@ -94,6 +85,10 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(googleAi, /GEMINI_TEXT_EMPTY_/);
   assert.match(googleAi, /attempt <= 3/);
   assert.match(googleAi, /Story brief moderation unavailable/);
+  assert.match(googleAi, /COVER_STYLE_OPTIONS/);
+  assert.match(googleAi, /buildVisualStyleLock/);
+  assert.match(googleAi, /generateCoverOptionIllustration/);
+  assert.match(googleAi, /Selected cover\/style lock/);
   assert.match(familyCharacters, /raw photo/);
   assert.match(familyCharacters, /reference_assets/);
   assert.match(familyCharacters, /selected_preset_ids/);
@@ -109,10 +104,6 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(characterPresets, /asian-dad-cozy-sweater/);
   assert.match(characterPresets, /CHARACTER_STYLE_VARIANTS/);
   assert.match(characterPresets, /iconClass/);
-  assert.match(createForm, /selectedCharacterPresetIds/);
-  assert.match(createForm, /Or choose illustrated family characters/);
-  assert.match(createForm, /CHARACTER_PRESETS/);
-  assert.match(createForm, /preset-avatar/);
   assert.match(reader, /Sleep timer/);
   assert.match(reader, /Story cover/);
   assert.match(reader, /Open the book/);
@@ -126,6 +117,13 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(reader, /Retry page illustrations/);
   assert.match(reader, /coverUrl/);
   assert.match(reader, /\/api\/progress/);
+  assert.match(coverChoice, /Choose the book cover/);
+  assert.match(coverChoice, /\/api\/stories\/\$\{storyId\}\/cover-options/);
+  assert.match(coverChoice, /Painting three cover ideas/);
+  assert.match(coverOptionsApi, /generateStandalonePageIllustration/);
+  assert.match(coverOptionsApi, /visualStyleLock/);
+  assert.match(coverOptionsApi, /selected_cover_option_id/);
+  assert.match(coverOptionsApi, /renderNarrationAsset/);
   assert.match(feedback, /rewardCredits = 5/);
   assert.match(feedback, /rewardCredits = 1/);
   assert.match(feedback, /export async function GET/);
@@ -187,7 +185,9 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(settings, /CharacterRefinementForm/);
   assert.match(library, /Story snapshot/);
   assert.match(library, /library-cover-fallback/);
-  assert.match(library, /Temporary illustration fallback/);
+  assert.match(library, /Choose your cover/);
+  assert.doesNotMatch(library, /birthday-story-scenes/);
+  assert.doesNotMatch(createForm, /CHARACTER_PRESETS|preset-avatar|selectedCharacterPresetIds|Or choose illustrated family characters/);
   assert.match(firebaseConfig, /publicEnv/);
   assert.match(versionRoute, /K_REVISION/);
   assert.match(versionRoute, /feedbackExport/);

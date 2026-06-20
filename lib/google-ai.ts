@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { presetPromptSummary } from "@/lib/character-presets";
 import { serverEnv } from "@/lib/env";
 import { fallbackStoryText } from "@/lib/story-fallback";
 import { normalizeStoryBook } from "@/lib/story-text-normalization";
@@ -54,6 +53,41 @@ memory montage. No duplicate clones, time-lapse copies, extra siblings, or repea
 versions of the same character. No logos, readable words, captions, labels, signs,
 book-page text, watermark, uncanny realism, or generic stock-art faces.
 `;
+
+export const COVER_STYLE_OPTIONS = [
+  {
+    id: "storybook-watercolor",
+    label: "Soft Watercolor Wonder",
+    promptSummary: "Gentle watercolor overlays, soft paper grain, warm bedtime glow, delicate premium personalized-book composition.",
+  },
+  {
+    id: "cinematic-adventure",
+    label: "Cinematic Little Adventure",
+    promptSummary: "Bolder animated family-film lighting, deeper sky-and-gold palette, playful camera angle, strong emotional thumbnail readability.",
+  },
+  {
+    id: "cozy-heirloom",
+    label: "Cozy Heirloom Classic",
+    promptSummary: "Classic picture-book charm, textured gouache, nostalgic family keepsake mood, calm elegant composition for bedtime.",
+  },
+] as const;
+
+export type CoverStyleOption = typeof COVER_STYLE_OPTIONS[number];
+
+function roleLock(brief: StoryBrief) {
+  if (!brief.familyRoles?.length) return "Family roles come from the grown-up names and story brief only; keep relationships consistent and avoid adding extra people.";
+  return brief.familyRoles.map(role =>
+    `Person ${role.marker} is ${role.role.replace("_", " ")}${role.displayName ? ` named ${role.displayName}` : ""}`,
+  ).join(". ");
+}
+
+export function buildVisualStyleLock(brief: StoryBrief, option: CoverStyleOption) {
+  return `Chosen cover direction: ${option.label}. ${option.promptSummary}
+Main child identity lock: ${brief.childName}, age ${brief.age}, ${brief.gender}, with these parent-supplied traits: ${brief.characterTraits || "warm, curious, expressive, bedtime-friendly"}.
+Family lock: ${brief.grownUps || "loving grown-ups"}. ${roleLock(brief)}
+Story memory lock: ${brief.event}. Memorable detail: ${brief.memory}.
+Consistency rules: keep the same child age, face shape, hair, outfit color family, family roles, palette, and emotional tone across cover and every interior page. Adult accessories must stay with adults unless the scene explicitly says the child is carrying or wearing the item. Use one clear moment per image and exactly one instance of the main child.`;
+}
 
 type GeminiPart = {
   text?: string;
@@ -262,9 +296,6 @@ Layout requirements adapted from professional character turnarounds:
 Main child: ${brief.childName}, age ${brief.age}, ${brief.gender}.
 Family: ${brief.grownUps || "loving parent or guardian"}.
 Traits from parent: ${brief.characterTraits || "warm, curious, bedtime-friendly child"}.
-Preset character choices, if any:
-${presetPromptSummary(brief)}
-
 ${familyPhoto ? `Use the supplied family photograph only as private visual reference.
 Manual role labels: ${roleDescription(brief.familyRoles)}.
 Translate high-level likeness cues into premium illustrated storybook characters.
@@ -336,6 +367,7 @@ export async function generateStandalonePageIllustration(
   pageTitle: string,
   sceneDescription: string,
   pageNumber: number,
+  visualStyleLock?: string | null,
 ) {
   const result = await generateContent(serverEnv().GEMINI_IMAGE_MODEL, {
     contents: [{
@@ -351,8 +383,9 @@ Parents or grown-ups: ${brief.grownUps || "their loving family"}
 Character traits: ${brief.characterTraits || "joyful and curious"}
 Event: ${brief.event}
 Memorable detail: ${brief.memory}
-Preset character choices:
-${presetPromptSummary(brief)}
+${visualStyleLock ? `Selected cover/style lock to follow exactly:
+${visualStyleLock}
+` : ""}
 Page title context: ${pageTitle}
 Scene: ${sceneDescription}
 
@@ -419,6 +452,60 @@ Cover requirements:
   return mediaFrom(result).bytes;
 }
 
+export async function generateCoverOptionIllustration({
+  title,
+  dedication,
+  brief,
+  emotionalHook,
+  option,
+  visualStyleLock,
+}: {
+  title: string;
+  dedication: string;
+  brief: StoryBrief;
+  emotionalHook: string;
+  option: CoverStyleOption;
+  visualStyleLock: string;
+}) {
+  const result = await generateContent(serverEnv().GEMINI_IMAGE_MODEL, {
+    contents: [{
+      role: "user",
+      parts: [{
+        text: `${STYLE_MODIFIER}
+Create one of three selectable cover directions for a personalized children's picture book.
+This is option: ${option.label}.
+Art direction: ${option.promptSummary}
+
+Book title context: ${title}
+Dedication tone: ${dedication}
+Main child: ${brief.childName}, age ${brief.age}, ${brief.gender}
+Family: ${brief.grownUps || "loving parent or guardian"}
+Character traits: ${brief.characterTraits || "joyful and curious"}
+Event: ${brief.event}
+Memorable detail: ${brief.memory}
+Emotional hook: ${emotionalHook}
+
+Visual style lock for later interior pages:
+${visualStyleLock}
+
+Cover requirements:
+- This is a front cover illustration option, not page 1 interior art.
+- Make this option visually distinct from the other cover styles while still premium and bedtime-safe.
+- Strong thumbnail readability on a mobile library card.
+- One iconic focal composition with the main child instantly recognizable.
+- Full-bleed cover art only; the app renders all text separately in HTML.
+- Show exactly one instance of the main child, with no duplicate copies or repeated background versions.
+- No text, letters, title, captions, labels, logos, watermarks, or photorealism inside the image.`,
+      }],
+    }],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+      imageConfig: { aspectRatio: "3:2", imageSize: "2K" },
+    },
+    safetySettings,
+  });
+  return mediaFrom(result).bytes;
+}
 export async function generateStandaloneCoverIllustration(
   title: string,
   dedication: string,
@@ -441,8 +528,6 @@ Family: ${brief.grownUps || "loving parent or guardian"}
 Character traits: ${brief.characterTraits || "joyful and curious"}
 Event: ${brief.event}
 Memorable detail: ${brief.memory}
-Preset character choices:
-${presetPromptSummary(brief)}
 Emotional hook: ${emotionalHook}
 
 Cover requirements:

@@ -216,9 +216,9 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
   color: var(--ink); background: #e7f0ef; cursor: pointer; font-weight: 800;
 }
 .password-rules { display: grid; gap: 6px; margin: 12px 0 18px; padding: 0; list-style: none; color: var(--ink-soft); font-size: .86rem; }
-.password-rules li::before { content: "â—‹"; margin-right: 8px; color: #b8aa90; }
+.password-rules li::before { content: "â—?; margin-right: 8px; color: #b8aa90; }
 .password-rules li.passed { color: var(--leaf); font-weight: 800; }
-.password-rules li.passed::before { content: "âœ“"; color: var(--leaf); }
+.password-rules li.passed::before { content: "âœ?; color: var(--leaf); }
 .auth-inline-action { margin: 0 0 18px; padding-left: 0; }
 .magic-link-form { margin-top: 14px; text-align: center; }
 .form-message { min-height: 24px; color: #9d3041; font-weight: 700; }
@@ -356,7 +356,7 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
   .story-form { width: 100%; padding: 24px 18px; }
   .form-progress { gap: 12px; flex-wrap: wrap; }
   .form-footer { align-items: stretch; flex-direction: column; }
-  .creation-grid, .reader-canvas { grid-template-columns: 1fr; }
+  .creation-grid, .reader-canvas, .cover-choice-grid { grid-template-columns: 1fr; }
   .creation-aside { position: static; }
   .reader-shell { padding: 15px; }
   .reader-topbar { align-items: flex-start; flex-direction: column; }
@@ -389,3 +389,12 @@ legend { margin-bottom: 10px; font-size: .84rem; font-weight: 800; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+.cover-choice-page > p:not(.section-label), .cover-choice-dedication { max-width: 760px; color: var(--ink-soft); font-size: 1.1rem; }
+.cover-choice-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 34px; }
+.cover-choice-card { overflow: hidden; display: flex; flex-direction: column; background: white; border-radius: 22px; box-shadow: 0 14px 42px rgba(23,52,74,.13); }
+.cover-choice-image { position: relative; aspect-ratio: 3 / 2; background: #dfead6; overflow: hidden; }
+.cover-choice-image img { object-fit: cover; }
+.cover-choice-copy { display: grid; gap: 12px; padding: 22px; }
+.cover-choice-copy h2 { margin: 0; font-size: clamp(1.55rem, 2.5vw, 2.35rem); }
+.cover-choice-copy p { color: var(--ink-soft); }

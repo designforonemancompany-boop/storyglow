@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { CoverChoice } from "@/components/cover-choice";
 import { StoryReader } from "@/components/story-reader";
 import { StoryGenerationStatus } from "@/components/story-generation-status";
 import { requireUser } from "@/lib/auth";
@@ -9,16 +10,33 @@ import { signMediaPath, signStoryPages } from "@/lib/media";
 export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireUser();
-  const [story, records, progress] = await Promise.all([
+  const [story, records, progress, coverOptionsSnapshot] = await Promise.all([
     ownedStory(user.uid, id),
     storyPages(id),
     firestore().collection("profiles").doc(user.uid).collection("progress").doc(id).get(),
+    firestore().collection("stories").doc(id).collection("coverOptions").get(),
   ]);
   if (!story) notFound();
   if (story.status === "generating" || story.status === "failed") {
     return <StoryGenerationStatus storyId={story.id} status={story.status} title={story.title} errorStage={story.error_stage} />;
   }
   if (!["ready", "archived"].includes(story.status)) notFound();
+
+  const coverChoiceStatus = story.cover_choice_status || (story.cover_path ? "selected" : null);
+  if (coverChoiceStatus && coverChoiceStatus !== "selected") {
+    const options = await Promise.all(coverOptionsSnapshot.docs.map(async doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        label: data.style_label || doc.id,
+        promptSummary: data.prompt_summary || "A premium StoryGlow cover direction.",
+        imageUrl: await signMediaPath(data.image_path || null),
+        status: data.status || "ready",
+      };
+    }));
+    return <CoverChoice storyId={story.id} title={story.title} dedication={story.dedication} status={coverChoiceStatus} options={options} />;
+  }
+
   const [pages, coverUrl] = await Promise.all([
     signStoryPages(records),
     signMediaPath(story.cover_path),

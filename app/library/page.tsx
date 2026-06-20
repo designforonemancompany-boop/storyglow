@@ -49,8 +49,8 @@ export default async function LibraryPage() {
                   <Image src={story.coverUrl} width={720} height={450} alt="" unoptimized />
                 ) : (
                   <div className="library-cover-fallback">
-                    <Image src="/assets/birthday-story-scenes.png" width={720} height={450} alt="" unoptimized />
-                    <span>Temporary illustration fallback</span>
+                    <div className="storybook-placeholder" aria-hidden><span>SG</span></div>
+                    <span>{story.cover_choice_status === "ready" ? "Choose your cover" : "Illustration pending"}</span>
                   </div>
                 )}
                 <div className="library-card-body">
@@ -60,7 +60,7 @@ export default async function LibraryPage() {
                   <div className="snapshot-meta">
                     <span>Story snapshot</span>
                     <strong>{story.brief?.event || "A family memory"}</strong>
-                    {story.family_character_id ? <small>Uses reusable family characters</small> : <small>Character memory will be created when ready</small>}
+                    {story.cover_choice_status === "ready" ? <small>Choose from 3 cover directions</small> : <small>Cover-led illustration flow</small>}
                   </div>
                   {story.status === "ready" || story.status === "archived" ? <Link className="button" href={`/stories/${story.id}`}>Read or listen</Link> : null}
                   {story.status === "generating" ? <Link className="button" href={`/stories/${story.id}`}>View progress</Link> : null}
