@@ -201,6 +201,8 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.doesNotMatch(createForm, /CHARACTER_PRESETS|preset-avatar|selectedCharacterPresetIds|Or choose illustrated family characters/);
   assert.match(firebaseConfig, /publicEnv/);
   assert.match(versionRoute, /K_REVISION/);
+  assert.match(versionRoute, /storyglow-reader-regeneration-v2/);
+  assert.match(versionRoute, /regenerate-all-page-art/);
   assert.match(versionRoute, /feedbackExport/);
   assert.match(versionRoute, /userFeedback/);
   assert.match(versionRoute, /Admin access required/);
