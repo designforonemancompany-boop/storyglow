@@ -68,8 +68,8 @@ export async function GET(request: Request) {
   return NextResponse.json({
     version: process.env.K_REVISION || process.env.VERCEL_GIT_COMMIT_SHA || "local",
     nodeEnv: process.env.NODE_ENV || "unknown",
-    codeVersion: "storyglow-staged-choice-v3",
-    features: ["three-storyline-options", "three-illustration-style-options", "single-page-illustration-retry", "library-progress-creation"],
+    codeVersion: "storyglow-library-progress-v4",
+    features: ["three-storyline-options", "three-illustration-style-options", "single-page-illustration-retry", "real-library-progress", "auto-refresh-library-progress"],
     generatedAt: new Date().toISOString(),
     feedbackExport: "/api/version?feedback=1&limit=20",
   });

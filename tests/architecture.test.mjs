@@ -5,7 +5,7 @@ import test from "node:test";
 const read = path => readFile(path, "utf8");
 
 test("production Firebase, Google AI, and commerce architecture is present", async () => {
-  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, coverChoice, storylineChoice, feedback, auth, signInForm, storyApi, storylineOptionsApi, coverOptionsApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, storyPage, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting] = await Promise.all([
+  const [pkg, firestoreRules, storageRules, generation, googleAi, env, reader, coverChoice, storylineChoice, feedback, auth, signInForm, storyApi, storylineOptionsApi, coverOptionsApi, checkout, stripeWebhook, firebaseConfig, feedbackReview, familyCharacters, characterPresets, createForm, settings, library, versionRoute, retryIllustrations, storyPage, sharePage, adminFeedback, adminAlias, betaAdminAlias, adminFeedbackApi, adminReviewApi, adminUsersApi, adminCreditsApi, adminAccess, adminPage, adminDenied, adminDashboard, appHosting, libraryProgress] = await Promise.all([
     read("package.json"),
     read("firestore.rules"),
     read("storage.rules"),
@@ -46,6 +46,7 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
     read("app/admin/access-denied/page.tsx"),
     read("components/admin-dashboard.tsx"),
     read("apphosting.yaml"),
+    read("components/library-progress-banner.tsx"),
   ]);
 
   assert.match(pkg, /"firebase"/);
@@ -207,13 +208,18 @@ test("production Firebase, Google AI, and commerce architecture is present", asy
   assert.match(library, /library-cover-fallback/);
   assert.match(library, /Choose your cover/);
   assert.match(library, /library-progress-banner/);
+  assert.match(library, /completedPages/);
+  assert.match(library, /totalPages/);
+  assert.match(libraryProgress, /router\.refresh/);
+  assert.match(libraryProgress, /Painting page illustrations/);
   assert.match(library, /Choose from 3 storyline directions/);
   assert.doesNotMatch(library, /birthday-story-scenes/);
   assert.doesNotMatch(createForm, /CHARACTER_PRESETS|preset-avatar|selectedCharacterPresetIds|Or choose illustrated family characters/);
   assert.match(firebaseConfig, /publicEnv/);
   assert.match(versionRoute, /K_REVISION/);
-  assert.match(versionRoute, /storyglow-staged-choice-v3/);
-  assert.match(versionRoute, /single-page-illustration-retry/);
+  assert.match(versionRoute, /storyglow-library-progress-v4/);
+  assert.match(versionRoute, /real-library-progress/);
+  assert.match(versionRoute, /auto-refresh-library-progress/);
   assert.match(versionRoute, /feedbackExport/);
   assert.match(versionRoute, /userFeedback/);
   assert.match(versionRoute, /Admin access required/);
